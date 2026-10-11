@@ -1,0 +1,4 @@
+/* Fuentes locales (licencia SIL OFL, ver OFL-*.txt). No requieren internet. */
+@font-face { font-family: 'Atkinson Hyperlegible'; src: url('atkinson-400.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Atkinson Hyperlegible'; src: url('atkinson-700.woff') format('woff'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Bricolage Grotesque'; src: url('bricolage-variable.woff') format('woff'); font-weight: 200 800; font-style: normal; font-display: swap; }

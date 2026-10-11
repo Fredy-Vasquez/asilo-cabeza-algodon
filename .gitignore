@@ -1,0 +1,17 @@
+# Datos privados: contraseña de aplicación de Gmail y clave del script
+config/correo.php
+
+# Respaldos y archivos del sistema operativo
+_respaldo_original/
+Thumbs.db
+.DS_Store
+docs/apps-script/*.local.gs
+
+# Documentos del curso (se entregan por separado)
+PDF*/
+
+# Evidencia generada al correr las pruebas
+tests/resultados*.json
+tests/resultados*.csv
+tests/capturas/
+__pycache__/

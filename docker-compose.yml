@@ -1,0 +1,25 @@
+name: asilo-cabeza-algodon
+
+# Microservicios de cálculo del Asilo Cabeza de Algodón.
+# Los puertos se publican solo en 127.0.0.1: únicamente el servidor PHP (XAMPP)
+# de esta misma computadora puede consumirlos (aislamiento, Fase de Análisis 4).
+services:
+  ms-imc:
+    build: ./docker/ms-imc
+    container_name: ms_imc_service
+    ports:
+      - "127.0.0.1:5001:5001"
+    restart: unless-stopped
+    networks: [red_asilo]
+
+  ms-cotizador:
+    build: ./docker/ms-cotizador
+    container_name: ms_cotizador_service
+    ports:
+      - "127.0.0.1:5002:5002"
+    restart: unless-stopped
+    networks: [red_asilo]
+
+networks:
+  red_asilo:
+    driver: bridge
