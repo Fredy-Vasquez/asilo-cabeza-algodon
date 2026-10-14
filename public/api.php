@@ -62,6 +62,19 @@ $rutas = [
     'visita_receta_quitar'    => ['VisitaController', 'quitarReceta', [A, S], true],
     'visita_finalizar'        => ['VisitaController', 'finalizar', [A, S], true],
 
+    // Laboratorio: resultados de exámenes y catálogo
+    'laboratorio'             => ['LaboratorioController', 'listar', [A, L], false],
+    'laboratorio_resultado'   => ['LaboratorioController', 'registrarResultado', [A, L], true],
+    'examenes_catalogo'       => ['LaboratorioController', 'catalogo', [A, L], false],
+    'examen_guardar'          => ['LaboratorioController', 'guardarExamen', [A, L], true],
+
+    // Farmacia: entrega de recetas e inventario
+    'farmacia'                => ['FarmaciaController', 'listar', [A, R], false],
+    'farmacia_entregar'       => ['FarmaciaController', 'entregar', [A, R], true],
+    'inventario'              => ['FarmaciaController', 'inventario', [A, R], false],
+    'medicamento_guardar'     => ['FarmaciaController', 'guardarMedicamento', [A, R], true],
+    'inventario_ingreso'      => ['FarmaciaController', 'ingreso', [A, R], true],
+
     // Caja
     'cotizador_catalogo'      => ['CotizacionController', 'catalogo', [A, C], false],
     'cotizar'                 => ['CotizacionController', 'cotizar', [A, C], true],

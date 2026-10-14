@@ -75,12 +75,13 @@ function aviso(mensaje, tipo = 'ok') {
 }
 
 const modalConfirmar = new bootstrap.Modal('#modalConfirmar');
-function confirmar(titulo, texto, boton = 'Confirmar') {
+function confirmar(titulo, texto, boton = 'Confirmar', tipo = 'danger') {
     return new Promise(resolve => {
         $('#confTitulo').textContent = titulo;
         $('#confTexto').textContent = texto;
         const b = $('#confBoton');
         b.textContent = boton;
+        b.className = `btn btn-${tipo}`;
         let ok = false;
         b.onclick = () => { ok = true; modalConfirmar.hide(); };
         $('#modalConfirmar').addEventListener('hidden.bs.modal', () => resolve(ok), { once: true });
@@ -177,6 +178,10 @@ const VISTAS = {
     agenda:          { titulo: 'Mi agenda', icono: 'calendar-check', grupo: 'Atención médica', roles: [6], render: (c, p) => vistaAgenda(c, p) },
     acompanamientos: { titulo: 'Mis acompañamientos', menu: 'Acompañamientos', icono: 'person-walking', grupo: 'Atención médica', roles: [4], render: (c, p) => vistaAcompanamientos(c, p) },
     visita:          { titulo: 'Visita médica', oculto: true, roles: [1, 2, 6], render: (c, p) => vistaVisita(c, p) },
+    laboratorio:     { titulo: 'Laboratorio', icono: 'eyedropper', grupo: 'Servicios clínicos', roles: [1, 7], render: (c, p) => vistaLaboratorio(c, p) },
+    examenes:        { titulo: 'Catálogo de exámenes', menu: 'Exámenes', icono: 'list-check', grupo: 'Servicios clínicos', roles: [1, 7], render: c => vistaExamenes(c) },
+    farmacia:        { titulo: 'Farmacia: recetas por entregar', menu: 'Recetas', icono: 'capsule', grupo: 'Servicios clínicos', roles: [1, 8], render: c => vistaFarmacia(c) },
+    inventario:      { titulo: 'Inventario de medicamentos', menu: 'Inventario', icono: 'box-seam', grupo: 'Servicios clínicos', roles: [1, 8], render: c => vistaInventario(c) },
     cotizador:       { titulo: 'Cotizador de estancia', menu: 'Cotizador', icono: 'calculator', grupo: 'Finanzas', roles: [1, 3], render: vistaCotizador },
     usuarios:        { titulo: 'Usuarios del sistema', menu: 'Usuarios', icono: 'person-gear', grupo: 'Administración', roles: [1], render: vistaUsuarios },
     configuracion:   { titulo: 'Configuración', icono: 'sliders', grupo: 'Administración', roles: [1], render: (c, p) => vistaConfiguracion(c, p) },
@@ -246,7 +251,9 @@ async function vistaInicio(c) {
         <div><div class="cifra">${d.residentes.activo + d.residentes.hospitalizado}</div><p>residentes en el asilo${d.residentes.hospitalizado ? `, ${d.residentes.hospitalizado} hospitalizado(s)` : ''}</p></div>
         <div><div class="cifra">${d.camas.ocupadas}<small> de ${d.camas.total}</small></div><p>camas ocupadas (${pct}%)</p></div>
         <div><div class="cifra">${d.alertas.length}</div><p>${urgentes ? `residentes con alerta, ${urgentes} urgente(s)` : 'residentes con alerta clínica'}</p></div>
-        ${puede(ROL.ENFERMERO, ROL.ESPECIALISTA)
+        ${puede(ROL.LABORATORIO) ? `<div><a class="cifra-enlace" href="#laboratorio"><div class="cifra">${d.laboratorio_pendientes}</div><p>exámenes esperan resultado</p></a></div>`
+            : puede(ROL.FARMACIA) ? `<div><a class="cifra-enlace" href="#farmacia"><div class="cifra">${d.farmacia_pendientes}</div><p>medicamentos por entregar</p></a></div>`
+            : puede(ROL.ENFERMERO, ROL.ESPECIALISTA)
             ? `<div><div class="cifra">${d.proximas_citas.length}</div><p>${puede(ROL.ESPECIALISTA) ? 'citas próximas en su agenda' : 'acompañamientos próximos'}</p></div>`
             : `<div><div class="cifra">${d.solicitudes.Pendiente}</div><p>solicitudes esperan horario de la fundación</p></div>`}
     </div>
@@ -260,6 +267,16 @@ async function vistaInicio(c) {
             </section>
         </div>
         <div class="col-xl-4 d-flex flex-column gap-4">
+            ${puede(ROL.ADMIN, ROL.FARMACIA) && d.stock_bajo.length ? `<section class="panel">
+                <div class="panel-cab"><h2>Medicamentos por agotarse</h2><a class="ms-auto small" href="#inventario">Inventario</a></div>
+                <ul class="lista-simple panel-cuerpo">${d.stock_bajo.map(m => `<li class="d-flex justify-content-between gap-2"><span>${esc(m.nombre_comercial)}</span>${etiqueta('urgente', `${m.stock} de ${m.stock_minimo}`)}</li>`).join('')}</ul>
+            </section>` : ''}
+            ${puede(ROL.ADMIN) && (d.laboratorio_pendientes || d.farmacia_pendientes) ? `<section class="panel">
+                <div class="panel-cab"><h2>Servicios clínicos</h2></div>
+                <div class="panel-cuerpo servicios">
+                    <div><i class="bi bi-eyedropper me-2"></i><a href="#laboratorio">${d.laboratorio_pendientes} examen(es) esperan resultado</a></div>
+                    <div><i class="bi bi-capsule me-2"></i><a href="#farmacia">${d.farmacia_pendientes} medicamento(s) por entregar</a></div>
+                </div></section>` : ''}
             <section class="panel">
                 <div class="panel-cab"><h2>Requieren atención</h2></div>
                 <div>${d.alertas.length ? d.alertas.map(itemAlerta).join('') : vacio('emoji-smile', 'Ninguna evaluación reciente presenta alertas.')}</div>

@@ -107,5 +107,6 @@ window.USUARIO = <?= json_encode(['id' => $u['id'], 'id_rol' => $u['id_rol'], 'n
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
 <script src="assets/js/app.js?v=<?= filemtime(__DIR__ . '/assets/js/app.js') ?>"></script>
 <script src="assets/js/atencion.js?v=<?= filemtime(__DIR__ . '/assets/js/atencion.js') ?>"></script>
+<script src="assets/js/servicios.js?v=<?= filemtime(__DIR__ . '/assets/js/servicios.js') ?>"></script>
 </body>
 </html>

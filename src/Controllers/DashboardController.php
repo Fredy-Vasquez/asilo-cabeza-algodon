@@ -6,6 +6,8 @@ require_once __DIR__ . '/../Models/Habitacion.php';
 require_once __DIR__ . '/../Models/EvaluacionMedica.php';
 require_once __DIR__ . '/../Services/MicroservicioClient.php';
 require_once __DIR__ . '/../Models/SolicitudMedica.php';
+require_once __DIR__ . '/../Models/Laboratorio.php';
+require_once __DIR__ . '/../Models/Farmacia.php';
 require_once __DIR__ . '/../Core/Auth.php';
 
 class DashboardController {
@@ -31,6 +33,9 @@ class DashboardController {
             'solicitudes' => $sol->contarPorEstado(),
             'proximas_citas' => $sol->proximas(6, $filtro),
             'microservicios' => (new MicroservicioClient())->estado(),
+            'laboratorio_pendientes' => (new Laboratorio())->contarPendientes(),
+            'farmacia_pendientes' => (new Farmacia())->contarPendientes(),
+            'stock_bajo' => (new Farmacia())->stockBajo(),
         ];
     }
 }

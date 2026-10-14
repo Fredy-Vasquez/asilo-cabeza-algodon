@@ -115,6 +115,8 @@ h1, h2, h3, .modal-title, .offcanvas-title { font-family: var(--fuente-titulo); 
 .cifras > div { flex: 1 1 180px; padding: 1rem 1.25rem; border-right: 1px solid var(--linea); }
 .cifras > div:last-child { border-right: 0; }
 .cifras .cifra { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.cifra-enlace { color: inherit; text-decoration: none; display: block; }
+.cifra-enlace:hover p { text-decoration: underline; }
 .cifras .cifra small { font-size: 1rem; color: var(--gris); font-weight: 500; }
 .cifras p { margin: .15rem 0 0; color: var(--gris); font-size: .92rem; }
 @media (max-width: 575.98px) { .cifras > div { flex-basis: 50%; border-bottom: 1px solid var(--linea); } }
@@ -259,6 +261,14 @@ a.agenda-cita:hover { background: #f7faf8; }
 .lista-simple li:last-child { border-bottom: 0; }
 .resultado-lab { color: #2a6644; margin-top: .25rem; }
 @media (max-width: 575.98px) { .visita-dl { grid-template-columns: 1fr; } }
+
+/* Servicios clínicos: laboratorio y farmacia */
+.banda-aviso.alerta { display: flex; gap: .6rem; align-items: flex-start; background: var(--achiote-claro); color: #6e2a1c; }
+.banda-aviso.alerta a { color: var(--achiote); font-weight: 700; }
+.resumen-form { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem 1rem; background: var(--papel); border-radius: var(--radio-chico); padding: .85rem 1rem; }
+.resumen-form span { display: block; font-size: .82rem; color: var(--gris); }
+.resumen-form strong { font-weight: 700; }
+@media (max-width: 575.98px) { .resumen-form { grid-template-columns: 1fr; } }
 
 /* Bitácora */
 .det-bitacora { font-size: .85rem; color: var(--gris); max-width: 420px; word-break: break-word; }
