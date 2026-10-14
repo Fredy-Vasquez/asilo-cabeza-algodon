@@ -305,3 +305,22 @@ a.agenda-cita:hover { background: #f7faf8; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Caja */
+.texto-vida { color: var(--vida); }
+.texto-achiote { color: var(--achiote); }
+.subtitulo { font-family: var(--fuente); font-size: .95rem; font-weight: 700; color: var(--gris); margin: 0 0 .6rem; }
+.fila-total td { font-weight: 700; border-top: 2px solid var(--linea); }
+.tabla-totales td { padding: .35rem .25rem; border: 0; vertical-align: middle; }
+.barra-mini { height: 8px; background: var(--papel); border-radius: 999px; overflow: hidden; min-width: 60px; margin-top: .3rem; }
+.barra-mini span { display: block; height: 100%; background: var(--pino); border-radius: 999px; }
+.tipo-mov { display: inline-block; font-size: .78rem; font-weight: 700; color: var(--gris); background: var(--papel); border-radius: 4px; padding: .05rem .4rem; margin-right: .25rem; }
+#accionesVista input[type=month] { width: auto; }
+
+@media print {
+    .sidebar, .topbar #accionesVista, .btn, #avisos { display: none !important; }
+    body, main, .panel { background: #fff !important; }
+    .panel { border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
+}
+.tabla td.text-end, .tabla th.text-end { white-space: nowrap; }
+.cifras .cifra { white-space: nowrap; }

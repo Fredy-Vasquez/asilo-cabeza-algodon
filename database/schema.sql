@@ -554,6 +554,31 @@ INSERT INTO cargos_familiares (id_residente, tipo, concepto, id_visita, monto_br
 (1, 'Examen', 'Electrocardiograma', 1, 150.00, 45.00, 105.00, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 10),
 (1, 'Medicamento', 'Atorvastatina 20 mg x 1', 1, 95.00, 28.50, 66.50, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 11);
 
+-- Caja de ejemplo: cuotas del mes pasado (las de este mes las genera el contador desde el sistema),
+-- pagos de los familiares, un abono a la fundación por la cita de Rosa, donaciones y gastos.
+INSERT INTO cargos_familiares (id_residente, tipo, concepto, monto_bruto, descuento, monto, periodo, fecha, id_usuario) VALUES
+(1, 'Cuota mensual', 'Cuota del mes anterior: Estancia Integral + habitación Privada', 2350.00, 0, 2350.00, DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m'), DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'), 3),
+(2, 'Cuota mensual', 'Cuota del mes anterior: Estancia Básica', 1500.00, 0, 1500.00, DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m'), DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'), 3),
+(3, 'Cuota mensual', 'Cuota del mes anterior: Estancia Básica', 1500.00, 0, 1500.00, DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m'), DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'), 3),
+(4, 'Cuota mensual', 'Cuota del mes anterior: Estancia Básica', 1500.00, 0, 1500.00, DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m'), DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'), 3);
+INSERT INTO pagos_familiares (id_residente, monto, fecha, metodo, referencia, observaciones, id_usuario) VALUES
+(1, 2350.00, DATE_ADD(DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'), INTERVAL 4 DAY), 'Transferencia', 'BI-558120', 'Cuota completa', 3),
+(2, 1500.00, DATE_ADD(DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'), INTERVAL 6 DAY), 'Efectivo', NULL, NULL, 3),
+(3, 1500.00, DATE_ADD(DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'), INTERVAL 6 DAY), 'Depósito', 'BAN-90211', NULL, 3),
+(4, 1000.00, DATE_ADD(DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'), INTERVAL 9 DAY), 'Efectivo', NULL, 'Abono; el resto la próxima semana', 3);
+INSERT INTO pagos_fundacion (id_visita, monto, fecha, metodo, referencia, id_usuario) VALUES
+(1, 245.00, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'Transferencia', 'BI-560077', 3);
+INSERT INTO donaciones (tipo_donante, donante, tipo_donacion, monto, descripcion, fecha, comprobante, id_usuario) VALUES
+('Empresa nacional', 'Distribuidora La Sureña, S. A.', 'Monetaria', 5000.00, 'Aporte trimestral', DATE_SUB(CURDATE(), INTERVAL 20 DAY), 'R-0101', 3),
+('Particular', 'Familia Sánchez Ortiz', 'Monetaria', 750.00, NULL, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'R-0102', 3),
+('Gobierno', 'Municipalidad de Mazatenango', 'En especie', 3200.00, '40 cajas de pañales para adulto y 20 frascos de suplemento', DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'R-0103', 3),
+('Empresa internacional', 'Fundación HelpAge (aporte regional)', 'Monetaria', 12000.00, 'Programa de apoyo a hogares de ancianos', DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'R-0104', 3);
+INSERT INTO gastos (categoria, descripcion, monto, fecha, comprobante, id_usuario) VALUES
+('Energía eléctrica', 'Factura de energía del mes anterior', 1850.00, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'ENERGUATE-77812', 3),
+('Agua', 'Servicio de agua municipal', 320.00, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'MUNI-4410', 3),
+('Alimentación', 'Compra de víveres de la semana', 2675.50, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'F-22891', 3),
+('Insumos y limpieza', 'Desinfectantes y guantes', 480.00, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'F-1187', 3);
+
 -- 2) Programada para mañana a las 10:00: Manuel con psiquiatría
 INSERT INTO solicitudes_medicas (id_residente, id_medico_general, id_especialidad, id_enfermero, motivo, prioridad, estado, fecha_solicitud, id_medico_asignado, fecha_programada, notas_fundacion) VALUES
 (2, 2, 4, 5, 'Desorientación por las tardes y episodios de agitación nocturna; descartar progresión del deterioro cognitivo.', 'Normal', 'Programada', DATE_SUB(NOW(), INTERVAL 2 DAY), 8, DATE_ADD(CURDATE(), INTERVAL 34 HOUR), 'Presentarse 15 minutos antes en la clínica 3.');

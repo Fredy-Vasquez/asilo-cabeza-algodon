@@ -182,6 +182,12 @@ const VISTAS = {
     examenes:        { titulo: 'Catálogo de exámenes', menu: 'Exámenes', icono: 'list-check', grupo: 'Servicios clínicos', roles: [1, 7], render: c => vistaExamenes(c) },
     farmacia:        { titulo: 'Farmacia: recetas por entregar', menu: 'Recetas', icono: 'capsule', grupo: 'Servicios clínicos', roles: [1, 8], render: c => vistaFarmacia(c) },
     inventario:      { titulo: 'Inventario de medicamentos', menu: 'Inventario', icono: 'box-seam', grupo: 'Servicios clínicos', roles: [1, 8], render: c => vistaInventario(c) },
+    caja:            { titulo: 'Resumen de caja', icono: 'cash-stack', grupo: 'Finanzas', roles: [1, 3], render: c => vistaCaja(c) },
+    cuentas:         { titulo: 'Cuentas de los familiares', menu: 'Cuentas y cobros', icono: 'wallet2', grupo: 'Finanzas', roles: [1, 3], render: c => vistaCuentas(c) },
+    cuenta:          { titulo: 'Estado de cuenta', oculto: true, roles: [1, 3], render: (c, p) => vistaCuenta(c, p) },
+    'fundacion-pagos': { titulo: 'Cuenta con la fundación', menu: 'Pagos a la fundación', icono: 'bank', grupo: 'Finanzas', roles: [1, 3, 5], render: c => vistaFundacionPagos(c) },
+    donaciones:      { titulo: 'Donaciones', icono: 'gift', grupo: 'Finanzas', roles: [1, 3], render: c => vistaDonaciones(c) },
+    gastos:          { titulo: 'Gastos del asilo', menu: 'Gastos', icono: 'receipt', grupo: 'Finanzas', roles: [1, 3], render: c => vistaGastos(c) },
     cotizador:       { titulo: 'Cotizador de estancia', menu: 'Cotizador', icono: 'calculator', grupo: 'Finanzas', roles: [1, 3], render: vistaCotizador },
     usuarios:        { titulo: 'Usuarios del sistema', menu: 'Usuarios', icono: 'person-gear', grupo: 'Administración', roles: [1], render: vistaUsuarios },
     configuracion:   { titulo: 'Configuración', icono: 'sliders', grupo: 'Administración', roles: [1], render: (c, p) => vistaConfiguracion(c, p) },
@@ -207,7 +213,7 @@ async function navegar() {
     let { vista, params } = parametros();
     if (!VISTAS[vista] || !VISTAS[vista].roles.includes(U.id_rol)) vista = 'inicio';
     const v = VISTAS[vista];
-    const enMenu = vista === 'visita' ? (puede(ROL.ESPECIALISTA) ? 'agenda' : 'solicitudes') : vista;
+    const enMenu = vista === 'visita' ? (puede(ROL.ESPECIALISTA) ? 'agenda' : 'solicitudes') : vista === 'cuenta' ? 'cuentas' : vista;
     $$('#menu a').forEach(a => a.classList.toggle('activo', a.dataset.vista === enMenu));
     $('#tituloVista').textContent = v.titulo;
     $('#accionesVista').innerHTML = '';
@@ -253,6 +259,7 @@ async function vistaInicio(c) {
         <div><div class="cifra">${d.alertas.length}</div><p>${urgentes ? `residentes con alerta, ${urgentes} urgente(s)` : 'residentes con alerta clínica'}</p></div>
         ${puede(ROL.LABORATORIO) ? `<div><a class="cifra-enlace" href="#laboratorio"><div class="cifra">${d.laboratorio_pendientes}</div><p>exámenes esperan resultado</p></a></div>`
             : puede(ROL.FARMACIA) ? `<div><a class="cifra-enlace" href="#farmacia"><div class="cifra">${d.farmacia_pendientes}</div><p>medicamentos por entregar</p></a></div>`
+            : puede(ROL.CONTADOR) ? `<div><a class="cifra-enlace" href="#cuentas"><div class="cifra">${fmtQ(d.por_cobrar)}</div><p>por cobrar a familiares</p></a></div>`
             : puede(ROL.ENFERMERO, ROL.ESPECIALISTA)
             ? `<div><div class="cifra">${d.proximas_citas.length}</div><p>${puede(ROL.ESPECIALISTA) ? 'citas próximas en su agenda' : 'acompañamientos próximos'}</p></div>`
             : `<div><div class="cifra">${d.solicitudes.Pendiente}</div><p>solicitudes esperan horario de la fundación</p></div>`}

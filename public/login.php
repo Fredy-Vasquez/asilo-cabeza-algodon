@@ -63,7 +63,12 @@ $expirada = isset($_GET['expirada']);
                     <li><button type="button" data-demo="medico@asilo.com">medico@asilo.com</button> Médico general</li>
                     <li><button type="button" data-demo="enfermera@asilo.com">enfermera@asilo.com</button> Enfermera</li>
                     <li><button type="button" data-demo="fundacion@asilo.com">fundacion@asilo.com</button> Fundación</li>
-                    <li><button type="button" data-demo="internista@asilo.com">internista@asilo.com</button> Médico especialista</li>
+                    <li><button type="button" data-demo="enfermero@asilo.com">enfermero@asilo.com</button> Enfermero</li>
+                    <li><button type="button" data-demo="internista@asilo.com">internista@asilo.com</button> Especialista: Medicina interna</li>
+                    <li><button type="button" data-demo="cardiologo@asilo.com">cardiologo@asilo.com</button> Especialista: Cardiología</li>
+                    <li><button type="button" data-demo="psiquiatra@asilo.com">psiquiatra@asilo.com</button> Especialista: Psiquiatría</li>
+                    <li><button type="button" data-demo="geriatra@asilo.com">geriatra@asilo.com</button> Especialista: Geriatría</li>
+                    <li><button type="button" data-demo="traumatologo@asilo.com">traumatologo@asilo.com</button> Especialista: Traumatología</li>
                     <li><button type="button" data-demo="laboratorio@asilo.com">laboratorio@asilo.com</button> Laboratorio</li>
                     <li><button type="button" data-demo="farmacia@asilo.com">farmacia@asilo.com</button> Farmacia</li>
                     <li><button type="button" data-demo="contador@asilo.com">contador@asilo.com</button> Contador (caja)</li>

@@ -8,6 +8,7 @@ require_once __DIR__ . '/../Services/MicroservicioClient.php';
 require_once __DIR__ . '/../Models/SolicitudMedica.php';
 require_once __DIR__ . '/../Models/Laboratorio.php';
 require_once __DIR__ . '/../Models/Farmacia.php';
+require_once __DIR__ . '/../Models/Caja.php';
 require_once __DIR__ . '/../Core/Auth.php';
 
 class DashboardController {
@@ -36,6 +37,7 @@ class DashboardController {
             'laboratorio_pendientes' => (new Laboratorio())->contarPendientes(),
             'farmacia_pendientes' => (new Farmacia())->contarPendientes(),
             'stock_bajo' => (new Farmacia())->stockBajo(),
+            'por_cobrar' => Auth::tieneRol([ROL_ADMIN, ROL_CONTADOR]) ? (new Caja())->porCobrar() : null,
         ];
     }
 }

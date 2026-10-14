@@ -75,7 +75,19 @@ $rutas = [
     'medicamento_guardar'     => ['FarmaciaController', 'guardarMedicamento', [A, R], true],
     'inventario_ingreso'      => ['FarmaciaController', 'ingreso', [A, R], true],
 
-    // Caja
+    // Caja: cuentas de familiares, cuotas, fundación, donaciones y gastos
+    'caja_resumen'            => ['CajaController', 'resumen', [A, C], false],
+    'cuentas'                 => ['CajaController', 'cuentas', [A, C], false],
+    'cuenta_estado'           => ['CajaController', 'estadoCuenta', [A, C], false],
+    'pago_registrar'          => ['CajaController', 'registrarPago', [A, C], true],
+    'cuotas_preview'          => ['CajaController', 'cuotasPreview', [A, C], false],
+    'cuotas_generar'          => ['CajaController', 'generarCuotas', [A, C], true],
+    'fundacion_cuenta'        => ['CajaController', 'deudaFundacion', [A, C, F], false],
+    'fundacion_pagar'         => ['CajaController', 'pagarFundacion', [A, C], true],
+    'donaciones'              => ['CajaController', 'donaciones', [A, C], false],
+    'donacion_registrar'      => ['CajaController', 'registrarDonacion', [A, C], true],
+    'gastos'                  => ['CajaController', 'gastos', [A, C], false],
+    'gasto_registrar'         => ['CajaController', 'registrarGasto', [A, C], true],
     'cotizador_catalogo'      => ['CotizacionController', 'catalogo', [A, C], false],
     'cotizar'                 => ['CotizacionController', 'cotizar', [A, C], true],
 

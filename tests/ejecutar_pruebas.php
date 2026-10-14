@@ -411,6 +411,97 @@ caso('CP-65', 'RF-43', 'Seguridad', 'Farmacia intenta registrar un resultado de 
     return [$r['http'] === 403, "HTTP {$r['http']}", $r['ms']];
 });
 
+/* ===== Caja (Paso D) ===== */
+$cont->login('contador@asilo.com', $CLAVE);
+$saldoRes = function () use ($cont, &$idRes): ?float {
+    foreach ($cont->get('cuentas')['json']['data']['cuentas'] ?? [] as $x) if ((int)$x['id_residente'] === (int)$idRes) return (float)$x['saldo'];
+    return null;
+};
+$citaPrueba = function () use ($cont, &$idVis): ?array {
+    foreach ($cont->get('fundacion_cuenta')['json']['data']['citas'] ?? [] as $x) if ((int)$x['id_visita'] === (int)$idVis) return $x;
+    return null;
+};
+caso('CP-66', 'RF-39', 'Funcional', 'Generar las cuotas mensuales del mes (plan + habitación)', 'Una cuota por residente activo', function () use ($cont, $exito, $msg) {
+    $r = $cont->post('cuotas_generar', ['periodo' => date('Y-m')]);
+    return [$exito($r) && ($r['json']['data']['generadas'] ?? 0) >= 1, $msg($r), $r['ms']];
+});
+caso('CP-67', 'RF-39', 'Negativa', 'Generar otra vez las cuotas del mismo mes', 'No se duplica ninguna cuota', function () use ($cont, $exito, $msg) {
+    $r = $cont->post('cuotas_generar', ['periodo' => date('Y-m')]);
+    return [$exito($r) && ($r['json']['data']['generadas'] ?? -1) === 0, $msg($r), $r['ms']];
+});
+caso('CP-68', 'RF-25', 'Funcional', 'El saldo del familiar es la suma de cargos menos pagos', 'Saldo = cargos − pagos del estado de cuenta', function () use ($cont, $saldoRes, &$idRes) {
+    $r = $cont->get('cuenta_estado', "&id_residente={$idRes}");
+    $d = $r['json']['data'] ?? [];
+    $c = 0; $p = 0;
+    foreach ($d['movimientos'] ?? [] as $m) $m['clase'] === 'cargo' ? $c += $m['monto'] : $p += $m['monto'];
+    $s = $saldoRes();
+    return [abs(($c - $p) - $d['saldo']) < 0.01 && abs($s - $d['saldo']) < 0.01 && $s > 0, "Cargos Q {$c}, pagos Q {$p}, saldo Q {$d['saldo']}", $r['ms']];
+});
+caso('CP-69', 'RF-23', 'Funcional', 'Registrar un abono parcial del familiar', 'El saldo baja exactamente el monto abonado', function () use ($cont, $exito, $msg, $saldoRes, &$idRes) {
+    $antes = $saldoRes();
+    $r = $cont->post('pago_registrar', ['id_residente' => $idRes, 'monto' => 100, 'metodo' => 'Efectivo']);
+    $despues = $saldoRes();
+    return [$exito($r) && abs($antes - 100 - $despues) < 0.01, "Saldo Q {$antes} → Q {$despues}", $r['ms']];
+});
+caso('CP-70', 'RF-23', 'Negativa', 'Registrar un pago mayor que el saldo pendiente', 'HTTP 422', function () use ($cont, $msg, &$idRes) {
+    $r = $cont->post('pago_registrar', ['id_residente' => $idRes, 'monto' => 999999, 'metodo' => 'Efectivo']);
+    return [$r['http'] === 422, "HTTP {$r['http']}: " . $msg($r), $r['ms']];
+});
+caso('CP-71', 'RF-23', 'Negativa', 'Pago por transferencia sin número de referencia', 'HTTP 422', function () use ($cont, $msg, &$idRes) {
+    $r = $cont->post('pago_registrar', ['id_residente' => $idRes, 'monto' => 10, 'metodo' => 'Transferencia']);
+    return [$r['http'] === 422, "HTTP {$r['http']}: " . $msg($r), $r['ms']];
+});
+caso('CP-72', 'RF-25', 'Funcional', 'Cancelar el saldo restante deja la cuenta en cero', 'Saldo final Q 0.00', function () use ($cont, $exito, $saldoRes, &$idRes) {
+    $r = $cont->post('pago_registrar', ['id_residente' => $idRes, 'monto' => $saldoRes(), 'metodo' => 'Depósito', 'referencia' => 'PRUEBA-01']);
+    $s = $saldoRes();
+    return [$exito($r) && abs($s) < 0.01, "Saldo final Q {$s}", $r['ms']];
+});
+caso('CP-73', 'RF-41', 'Funcional', 'La deuda con la fundación por la cita suma consulta, examen y medicamento con precio especial', 'Total = cargos netos de la visita', function () use ($citaPrueba, &$cargoEx, &$cargoMed) {
+    $c = $citaPrueba();
+    $esperado = round(175 + ($cargoEx['neto'] ?? 0) + ($cargoMed['neto'] ?? 0), 2);
+    return [$c && abs($c['adeudado'] - $esperado) < 0.01 && $c['estado_pago'] === 'Pendiente', $c ? "Adeudado Q {$c['adeudado']} (esperado Q {$esperado}), {$c['estado_pago']}" : 'No aparece', 0];
+});
+caso('CP-74', 'RF-41', 'Funcional', 'Abono parcial a la fundación: la cita queda como no cancelada', 'Estado Parcial', function () use ($cont, $exito, $citaPrueba, &$idVis) {
+    $r = $cont->post('fundacion_pagar', ['id_visita' => $idVis, 'monto' => 100, 'metodo' => 'Efectivo']);
+    $c = $citaPrueba();
+    return [$exito($r) && $c['estado_pago'] === 'Parcial', "Estado {$c['estado_pago']}, falta Q {$c['saldo']}", $r['ms']];
+});
+caso('CP-75', 'RF-41', 'Funcional', 'Pagar el resto cancela la cita y un pago adicional se rechaza', 'Estado Cancelada y luego HTTP 409', function () use ($cont, $citaPrueba, &$idVis) {
+    $cont->post('fundacion_pagar', ['id_visita' => $idVis, 'monto' => $citaPrueba()['saldo'], 'metodo' => 'Cheque', 'referencia' => 'CH-0001']);
+    $c = $citaPrueba();
+    $r = $cont->post('fundacion_pagar', ['id_visita' => $idVis, 'monto' => 1, 'metodo' => 'Efectivo']);
+    return [$c['estado_pago'] === 'Cancelada' && $r['http'] === 409, "Estado {$c['estado_pago']}; pago extra HTTP {$r['http']}", $r['ms']];
+});
+caso('CP-76', 'RF-24', 'Funcional', 'Registrar donación de empresa internacional', 'Aparece en el total de su tipo de donante', function () use ($cont, $exito) {
+    $antes = (float)($cont->get('donaciones')['json']['data']['por_tipo']['Empresa internacional'] ?? 0);
+    $r = $cont->post('donacion_registrar', ['tipo_donante' => 'Empresa internacional', 'donante' => 'Donante de prueba', 'tipo_donacion' => 'Monetaria', 'monto' => 1000]);
+    $despues = (float)($cont->get('donaciones')['json']['data']['por_tipo']['Empresa internacional'] ?? 0);
+    return [$exito($r) && abs($despues - $antes - 1000) < 0.01, "Empresa internacional: Q {$antes} → Q {$despues}", $r['ms']];
+});
+caso('CP-77', 'RF-24', 'Negativa', 'Donación en especie sin describir qué se donó', 'HTTP 422', function () use ($cont, $msg) {
+    $r = $cont->post('donacion_registrar', ['tipo_donante' => 'Particular', 'donante' => 'Prueba', 'tipo_donacion' => 'En especie', 'monto' => 50]);
+    return [$r['http'] === 422, "HTTP {$r['http']}: " . $msg($r), $r['ms']];
+});
+caso('CP-78', 'RF-40', 'Funcional', 'Registrar gasto de energía eléctrica y verlo en el resumen de caja', 'Las salidas del mes aumentan en el monto', function () use ($cont, $exito) {
+    $antes = (float)($cont->get('caja_resumen')['json']['data']['salidas']['gastos'] ?? 0);
+    $r = $cont->post('gasto_registrar', ['categoria' => 'Energía eléctrica', 'descripcion' => 'Factura de prueba', 'monto' => 250.75]);
+    $despues = (float)($cont->get('caja_resumen')['json']['data']['salidas']['gastos'] ?? 0);
+    return [$exito($r) && abs($despues - $antes - 250.75) < 0.01, "Gastos del mes Q {$antes} → Q {$despues}", $r['ms']];
+});
+caso('CP-79', 'RF-40', 'Negativa', 'Registrar un gasto con fecha futura', 'HTTP 422', function () use ($cont, $msg) {
+    $r = $cont->post('gasto_registrar', ['categoria' => 'Agua', 'descripcion' => 'Prueba', 'monto' => 10, 'fecha' => date('Y-m-d', strtotime('+10 days'))]);
+    return [$r['http'] === 422, "HTTP {$r['http']}: " . $msg($r), $r['ms']];
+});
+caso('CP-80', 'RF-43', 'Seguridad', 'El médico especialista intenta registrar un pago en caja', 'HTTP 403', function () use ($esp, &$idRes) {
+    $r = $esp->post('pago_registrar', ['id_residente' => $idRes, 'monto' => 1, 'metodo' => 'Efectivo']);
+    return [$r['http'] === 403, "HTTP {$r['http']}", $r['ms']];
+});
+caso('CP-81', 'RF-43', 'Seguridad', 'La fundación consulta lo que se le debe pero no puede registrar pagos', 'Consulta 200 y pago 403', function () use ($fund, &$idVis) {
+    $g = $fund->get('fundacion_cuenta');
+    $p = $fund->post('fundacion_pagar', ['id_visita' => $idVis, 'monto' => 1, 'metodo' => 'Efectivo']);
+    return [$g['http'] === 200 && $p['http'] === 403, "Consulta HTTP {$g['http']}, pago HTTP {$p['http']}", $p['ms']];
+});
+
 /* ===== No funcionales ===== */
 caso('CP-51', 'RNF-03', 'Rendimiento', 'Tiempo de respuesta del panel de inicio', 'Menos de 3 segundos', function () use ($admin) {
     $r = $admin->get('dashboard');
