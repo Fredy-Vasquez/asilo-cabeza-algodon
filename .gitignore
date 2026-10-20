@@ -15,3 +15,6 @@ tests/resultados*.json
 tests/resultados*.csv
 tests/capturas/
 __pycache__/
+
+# Secretos del servidor (Docker/Azure)
+.env

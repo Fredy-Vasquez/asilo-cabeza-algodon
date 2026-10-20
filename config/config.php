@@ -29,7 +29,20 @@ define('ROL_FARMACIA', 8);
 
 date_default_timezone_set(APP_ZONA_HORARIA);
 
-// Correo (Gmail). Los datos privados viven en config/correo.php, que no se sube a GitHub.
+// Correo (Gmail). Los datos privados viven en config/correo.php (XAMPP) o en variables
+// de entorno del servidor (Docker/Azure, archivo .env). Ninguno de los dos se sube a GitHub.
 if (file_exists(__DIR__ . '/correo.php')) {
     require_once __DIR__ . '/correo.php';
+    define('CORREO_ORIGEN', 'config/correo.php');
+} elseif (getenv('CORREO_METODO') !== false) {
+    define('CORREO_ACTIVO', filter_var(getenv('CORREO_ACTIVO'), FILTER_VALIDATE_BOOLEAN));
+    define('CORREO_REMITENTE', getenv('CORREO_REMITENTE') ?: 'Asilo Cabeza de Algodón');
+    define('CORREO_METODO', getenv('CORREO_METODO') ?: 'apps_script');
+    define('CORREO_USUARIO', getenv('CORREO_USUARIO') ?: '');
+    define('CORREO_PASSWORD', getenv('CORREO_PASSWORD') ?: '');
+    define('CORREO_SMTP_HOST', 'smtp.gmail.com');
+    define('CORREO_SMTP_PUERTO', 587);
+    define('CORREO_APPS_SCRIPT_URL', getenv('CORREO_APPS_SCRIPT_URL') ?: '');
+    define('CORREO_APPS_SCRIPT_CLAVE', getenv('CORREO_APPS_SCRIPT_CLAVE') ?: '');
+    define('CORREO_ORIGEN', 'el archivo .env del servidor');
 }

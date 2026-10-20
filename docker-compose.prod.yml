@@ -1,0 +1,86 @@
+name: asilo-cabeza-algodon-prod
+
+# Despliegue completo en un servidor (máquina virtual de Azure):
+#   web          PHP 8.2 + Apache  -> único servicio expuesto a Internet (puerto 80)
+#   db           MariaDB 10.11 (la misma familia que XAMPP), datos en un volumen persistente
+#   ms-imc       microservicio Flask, solo accesible dentro de la red interna
+#   ms-cotizador microservicio Flask, solo accesible dentro de la red interna
+# Los secretos (contraseñas, datos del correo) viven en el archivo .env del servidor, que no se sube a GitHub.
+#
+# Uso:  docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    container_name: asilo_web
+    ports:
+      - "80:80"
+    environment:
+      TZ: America/Guatemala
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: asilo_cabeza_algodon
+      DB_USER: asilo
+      DB_PASS: ${DB_PASS:?Defina DB_PASS en el archivo .env}
+      MS_IMC_URL: http://ms-imc:5001
+      MS_COTIZADOR_URL: http://ms-cotizador:5002
+      CORREO_ACTIVO: ${CORREO_ACTIVO:-false}
+      CORREO_METODO: ${CORREO_METODO:-apps_script}
+      CORREO_REMITENTE: ${CORREO_REMITENTE:-Asilo Cabeza de Algodón}
+      CORREO_APPS_SCRIPT_URL: ${CORREO_APPS_SCRIPT_URL:-}
+      CORREO_APPS_SCRIPT_CLAVE: ${CORREO_APPS_SCRIPT_CLAVE:-}
+      CORREO_USUARIO: ${CORREO_USUARIO:-}
+      CORREO_PASSWORD: ${CORREO_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      ms-imc:
+        condition: service_started
+      ms-cotizador:
+        condition: service_started
+    restart: unless-stopped
+    networks: [red_asilo]
+
+  db:
+    image: mariadb:10.11
+    container_name: asilo_db
+    environment:
+      TZ: America/Guatemala
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASS:?Defina DB_ROOT_PASS en el archivo .env}
+      MARIADB_DATABASE: asilo_cabeza_algodon
+      MARIADB_USER: asilo
+      MARIADB_PASSWORD: ${DB_PASS:?Defina DB_PASS en el archivo .env}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--innodb-buffer-pool-size=128M"]
+    volumes:
+      - datos_asilo:/var/lib/mysql
+      # Solo se ejecuta la primera vez (volumen vacío): crea las 24 tablas y los datos de ejemplo
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+    networks: [red_asilo]
+
+  ms-imc:
+    build: ./docker/ms-imc
+    container_name: asilo_ms_imc
+    restart: unless-stopped
+    networks: [red_asilo]
+
+  ms-cotizador:
+    build: ./docker/ms-cotizador
+    container_name: asilo_ms_cotizador
+    restart: unless-stopped
+    networks: [red_asilo]
+
+volumes:
+  datos_asilo:
+
+networks:
+  red_asilo:
+    driver: bridge

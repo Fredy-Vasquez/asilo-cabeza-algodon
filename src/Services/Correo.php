@@ -27,16 +27,17 @@ class Correo {
     }
 
     public static function estado(): array {
-        if (!file_exists(__DIR__ . '/../../config/correo.php')) {
+        if (!defined('CORREO_ORIGEN')) {
             return ['listo' => false, 'mensaje' => 'Falta el archivo config/correo.php. Cópielo desde config/correo.ejemplo.php y complete sus datos.'];
         }
+        $origen = CORREO_ORIGEN;
         if (!defined('CORREO_ACTIVO') || !CORREO_ACTIVO) {
-            return ['listo' => false, 'mensaje' => 'El envío está desactivado (CORREO_ACTIVO = false en config/correo.php).'];
+            return ['listo' => false, 'mensaje' => "El envío está desactivado (CORREO_ACTIVO = false en {$origen})."];
         }
         if (!self::configurado()) {
             return ['listo' => false, 'mensaje' => self::metodo() === 'apps_script'
-                ? 'Complete CORREO_APPS_SCRIPT_URL y CORREO_APPS_SCRIPT_CLAVE en config/correo.php.'
-                : 'Complete CORREO_USUARIO y CORREO_PASSWORD en config/correo.php.'];
+                ? "Complete CORREO_APPS_SCRIPT_URL y CORREO_APPS_SCRIPT_CLAVE en {$origen}."
+                : "Complete CORREO_USUARIO y CORREO_PASSWORD en {$origen}."];
         }
         return ['listo' => true, 'mensaje' => self::metodo() === 'apps_script'
             ? 'Enviando con Google Apps Script (HTTPS, puerto 443).'
@@ -188,7 +189,7 @@ class Correo {
         $p[] = ['prueba' => 'Conexión HTTPS (puerto 443) para Apps Script', 'ok' => (bool)$sock,
                 'detalle' => $sock ? "Abierto ({$ms} ms). Si los puertos de correo están bloqueados, use CORREO_METODO = 'apps_script'." : "Bloqueado: {$errstr} (código {$errno})."];
         $cfg = self::estado();
-        $p[] = ['prueba' => 'Archivo config/correo.php (método: ' . self::metodo() . ')', 'ok' => $cfg['listo'], 'detalle' => $cfg['mensaje']];
+        $p[] = ['prueba' => 'Configuración del correo (método: ' . self::metodo() . ')', 'ok' => $cfg['listo'], 'detalle' => $cfg['mensaje']];
         return $p;
     }
 

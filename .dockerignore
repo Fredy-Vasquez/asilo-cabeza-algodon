@@ -1,0 +1,12 @@
+.git
+.env
+PDF*
+_respaldo_original
+tests
+docs
+deploy
+docker/ms-imc
+docker/ms-cotizador
+**/*.local.gs
+**/__pycache__
+config/correo.php
