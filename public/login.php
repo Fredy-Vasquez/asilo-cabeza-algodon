@@ -10,12 +10,15 @@ if (Auth::usuario()) {
 $expirada = isset($_GET['expirada']);
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?= htmlspecialchars(Auth::csrf()) ?>">
     <title>Ingresar | Asilo Cabeza de Algodón</title>
+    <meta name="theme-color" content="#05080f">
+    <link rel="icon" href="assets/img/manos-algodon.svg" type="image/svg+xml">
+    <script src="assets/js/tema.js?v=<?= filemtime(__DIR__ . '/assets/js/tema.js') ?>"></script>
     <link href="assets/vendor/fonts/fuentes.css" rel="stylesheet">
     <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
@@ -23,37 +26,40 @@ $expirada = isset($_GET['expirada']);
 </head>
 <body class="login-body">
 <main class="login">
-    <section class="login-marca" aria-hidden="true">
+    <button type="button" class="btn-tema" data-tema-boton><i class="bi bi-moon-stars-fill" aria-hidden="true"></i><i class="bi bi-sun-fill" aria-hidden="true"></i></button>
+    <section class="login-marca">
         <div class="login-logo">
-            <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><g fill="currentColor"><circle cx="24" cy="14" r="8"/><circle cx="15" cy="21" r="7.5"/><circle cx="33" cy="21" r="7.5"/><circle cx="19" cy="27" r="6.5"/><circle cx="29" cy="27" r="6.5"/></g><path d="M10 29.5c4 3 8.5 4.5 14 4.5s10-1.5 14-4.5M24 34v10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".7"/></svg>
+            <img src="assets/img/manos-algodon.svg" alt="" width="54" height="54">
             <span>Asilo Cabeza de Algodón</span>
         </div>
-        <p class="login-lema">La ficha médica, las citas con la fundación y la caja del asilo en un solo lugar.</p>
-        <p class="login-pie">Centro gerontológico en Mazatenango, Suchitepéquez</p>
+        <p class="login-lema">Cuidamos a quienes <em>sembraron</em> nuestro camino.</p>
+        <p class="login-pie">Ficha médica, citas con la fundación y caja del asilo en un solo lugar · Mazatenango, Suchitepéquez</p>
+        <img class="login-ilustracion" src="assets/img/cosecha.svg" alt="Ilustración: un abuelo cosecha algodón y lo guarda en su canasto" width="420" height="315">
     </section>
 
     <section class="login-panel">
-        <form id="formLogin" class="login-form" novalidate>
-            <h1>Ingresar al sistema</h1>
-            <p class="text-secondary mb-4">Use el correo y la contraseña que le asignó la administración.</p>
+        <form id="formLogin" class="vidrio" novalidate>
+            <div class="vidrio-avatar"><img src="assets/img/manos-algodon.svg" alt="" width="70" height="70"></div>
+            <h1>Bienvenido</h1>
+            <p class="login-sub">Use el correo y la contraseña que le asignó la administración.</p>
 
             <?php if ($expirada): ?>
                 <div class="alert alert-warning py-2">Su sesión expiró. Ingrese de nuevo.</div>
             <?php endif; ?>
             <div id="loginError" class="alert alert-danger py-2 d-none" role="alert"></div>
 
-            <div class="mb-3">
-                <label for="email" class="form-label">Correo electrónico</label>
-                <input type="email" class="form-control form-control-lg" id="email" name="email" autocomplete="username" required autofocus>
+            <div class="campo-linea">
+                <label for="email">Correo electrónico</label>
+                <i class="bi bi-envelope-fill" aria-hidden="true"></i>
+                <input type="email" id="email" name="email" autocomplete="username" required autofocus placeholder="usuario@asilo.com">
             </div>
-            <div class="mb-4">
-                <label for="password" class="form-label">Contraseña</label>
-                <div class="input-group input-group-lg">
-                    <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
-                    <button class="btn btn-outline-secondary" type="button" id="verPassword" aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button>
-                </div>
+            <div class="campo-linea mb-4">
+                <label for="password">Contraseña</label>
+                <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
+                <button class="ver-clave" type="button" id="verPassword" aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button>
             </div>
-            <button type="submit" class="btn btn-primary btn-lg w-100" id="btnIngresar">Ingresar</button>
+            <button type="submit" class="btn-ingresar" id="btnIngresar">Ingresar</button>
 
             <details class="login-demo">
                 <summary>Cuentas de demostración</summary>
@@ -84,7 +90,7 @@ document.getElementById('verPassword').addEventListener('click', e => {
     const p = document.getElementById('password');
     const ver = p.type === 'password';
     p.type = ver ? 'text' : 'password';
-    e.currentTarget.innerHTML = ver ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+    e.currentTarget.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña'); e.currentTarget.innerHTML = ver ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
 });
 document.querySelectorAll('[data-demo]').forEach(b => b.addEventListener('click', () => {
     document.getElementById('email').value = b.dataset.demo;

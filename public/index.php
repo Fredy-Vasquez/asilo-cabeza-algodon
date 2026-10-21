@@ -11,12 +11,15 @@ if (!$u) {
 $iniciales = implode('', array_map(fn($p) => mb_substr($p, 0, 1), array_slice(preg_split('/\s+/', preg_replace('/^(Dra?\.|Lic\.|Ing\.)\s*/', '', $u['nombre'])), 0, 2)));
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?= htmlspecialchars(Auth::csrf()) ?>">
     <title>Asilo Cabeza de Algodón</title>
+    <meta name="theme-color" content="#05080f">
+    <link rel="icon" href="assets/img/manos-algodon.svg" type="image/svg+xml">
+    <script src="assets/js/tema.js?v=<?= filemtime(__DIR__ . '/assets/js/tema.js') ?>"></script>
     <link href="assets/vendor/fonts/fuentes.css" rel="stylesheet">
     <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
@@ -29,8 +32,8 @@ $iniciales = implode('', array_map(fn($p) => mb_substr($p, 0, 1), array_slice(pr
     <!-- Barra lateral: offcanvas en móvil, fija en escritorio -->
     <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-label="Menú principal">
         <div class="sidebar-marca">
-            <svg viewBox="0 0 48 48" width="30" height="30" aria-hidden="true"><g fill="currentColor"><circle cx="24" cy="14" r="8"/><circle cx="15" cy="21" r="7.5"/><circle cx="33" cy="21" r="7.5"/><circle cx="19" cy="27" r="6.5"/><circle cx="29" cy="27" r="6.5"/></g><path d="M10 29.5c4 3 8.5 4.5 14 4.5s10-1.5 14-4.5M24 34v10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".7"/></svg>
-            <span>Cabeza de Algodón</span>
+            <img src="assets/img/manos-algodon.svg" alt="" width="40" height="40">
+            <span>Cabeza de Algodón<small>Asilo de ancianos</small></span>
             <button type="button" class="btn-close btn-close-white ms-auto d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Cerrar menú"></button>
         </div>
         <nav class="sidebar-nav" id="menu"></nav>
@@ -49,9 +52,10 @@ $iniciales = implode('', array_map(fn($p) => mb_substr($p, 0, 1), array_slice(pr
             <button class="btn btn-icono d-lg-none" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
             <h1 id="tituloVista">Inicio</h1>
             <div class="ms-auto d-flex align-items-center gap-2" id="accionesVista"></div>
+            <button type="button" class="btn-tema" data-tema-boton><i class="bi bi-moon-stars-fill" aria-hidden="true"></i><i class="bi bi-sun-fill" aria-hidden="true"></i></button>
         </header>
         <main id="contenido" tabindex="-1">
-            <div class="cargando"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Cargando…</span></div></div>
+            <div class="cargando"><div class="spinner-border text-warning" role="status"><span class="visually-hidden">Cargando…</span></div></div>
         </main>
     </div>
 </div>

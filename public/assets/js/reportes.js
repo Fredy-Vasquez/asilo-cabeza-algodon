@@ -92,7 +92,7 @@ async function generarReporte() {
         const cuerpo = RENDER_REPORTE[r.tipo](r.datos);
         h.innerHTML = `<article class="hoja-reporte panel">
             <header class="hoja-cab">
-                <div class="d-flex align-items-start gap-3"><svg class="hoja-logo" viewBox="0 0 48 48" aria-hidden="true"><g fill="currentColor"><circle cx="24" cy="14" r="8"/><circle cx="15" cy="21" r="7.5"/><circle cx="33" cy="21" r="7.5"/><circle cx="19" cy="27" r="6.5"/><circle cx="29" cy="27" r="6.5"/></g><path d="M10 29.5c4 3 8.5 4.5 14 4.5s10-1.5 14-4.5M24 34v10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".7"/></svg>
+                <div class="d-flex align-items-start gap-3"><img class="hoja-logo" src="assets/img/manos-algodon.svg" alt="">
                     <div><p class="hoja-asilo">${esc(r.asilo)}</p><h2>${esc(r.titulo)}</h2>
                     <p class="hoja-filtros">${r.filtros.residente ? `<strong>Residente:</strong> ${esc(r.filtros.residente)} · ` : ''}<strong>Período:</strong> ${rangoTexto(r.filtros)}</p></div></div>
                 <div class="hoja-acciones no-imprimir">
