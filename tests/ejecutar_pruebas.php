@@ -502,6 +502,68 @@ caso('CP-81', 'RF-43', 'Seguridad', 'La fundación consulta lo que se le debe pe
     return [$g['http'] === 200 && $p['http'] === 403, "Consulta HTTP {$g['http']}, pago HTTP {$p['http']}", $p['ms']];
 });
 
+/* ===== Reportes (Paso E) ===== */
+$rep = function (Cliente $c, string $tipo, string $extra = '') { return $c->get('reporte', "&tipo={$tipo}{$extra}"); };
+caso('CP-82', 'RF-26', 'Integración', 'El reporte de costos de citas cuadra con la cuenta de la fundación', 'Total del reporte = total adeudado a la fundación', function () use ($admin, $rep) {
+    $r = $rep($admin, 'costos_citas');
+    $f = $admin->get('fundacion_cuenta')['json']['data']['totales']['adeudado'] ?? -1;
+    $t = $r['json']['data']['datos']['resumen']['total'] ?? -2;
+    return [abs($t - $f) < 0.01 && count($r['json']['data']['datos']['por_especialidad'] ?? []) >= 1, "Reporte Q {$t}, fundación Q {$f}", $r['ms']];
+});
+caso('CP-83', 'RF-27', 'Funcional', 'Análisis médico del residente de prueba', 'Incluye motivo de ingreso, padecimientos y la visita', function () use ($admin, $rep, &$idRes) {
+    $r = $rep($admin, 'analisis_medico', "&id_residente={$idRes}");
+    $d = $r['json']['data']['datos'] ?? [];
+    return [!empty($d['residente']['motivo_ingreso']) && count($d['padecimientos'] ?? []) >= 1 && count($d['visitas'] ?? []) >= 1,
+        'Padecimientos: ' . count($d['padecimientos'] ?? []) . ', visitas: ' . count($d['visitas'] ?? []), $r['ms']];
+});
+caso('CP-84', 'RF-27', 'Negativa', 'Análisis médico sin elegir residente', 'HTTP 422', function () use ($admin, $rep, $msg) {
+    $r = $rep($admin, 'analisis_medico');
+    return [$r['http'] === 422, "HTTP {$r['http']}: " . $msg($r), $r['ms']];
+});
+caso('CP-85', 'RF-28', 'Funcional', 'Cobros del residente de prueba: cargos, pagos y saldo', 'Pagos = cargos y saldo Q 0.00', function () use ($admin, $rep, &$idRes) {
+    $r = $rep($admin, 'cobros', "&id_residente={$idRes}");
+    $p = $r['json']['data']['datos']['pacientes'][0] ?? [];
+    return [$p && abs($p['total_pagos'] - $p['total_cargos']) < 0.01 && abs($p['saldo']) < 0.01 && $p['gastos_medicos'] > 0,
+        'Cargado Q ' . ($p['total_cargos'] ?? '—') . ', gastos médicos Q ' . ($p['gastos_medicos'] ?? '—') . ', pagado Q ' . ($p['total_pagos'] ?? '—'), $r['ms']];
+});
+caso('CP-86', 'RF-28', 'Funcional', 'Cobros con un rango de fechas futuro', 'Sin movimientos', function () use ($admin, $rep) {
+    $d = date('Y-m-d', strtotime('+30 days'));
+    $r = $rep($admin, 'cobros', "&desde={$d}&hasta={$d}");
+    return [count($r['json']['data']['datos']['pacientes'] ?? [1]) === 0, count($r['json']['data']['datos']['pacientes'] ?? []) . ' pacientes', $r['ms']];
+});
+caso('CP-87', 'RF-29', 'Funcional', 'Entradas: el total es la suma de donaciones en dinero y cobros', 'Total = donaciones + cobros', function () use ($cont, $rep) {
+    $r = $rep($cont, 'entradas');
+    $s = $r['json']['data']['datos']['resumen'] ?? [];
+    $hay = in_array('Donante de prueba', array_column($r['json']['data']['datos']['donaciones'] ?? [], 'donante'));
+    return [$hay && abs($s['total'] - $s['donaciones'] - $s['cobros']) < 0.01, "Donaciones Q {$s['donaciones']} + cobros Q {$s['cobros']} = Q {$s['total']}", $r['ms']];
+});
+caso('CP-88', 'RF-30', 'Funcional', 'Medicamentos aplicados: aparece la entrega de farmacia', 'La entrega de la prueba aparece en el reporte', function () use ($admin, $rep, &$idRes, &$recFarm) {
+    $r = $rep($admin, 'medicamentos', "&id_residente={$idRes}");
+    $ids = array_column($r['json']['data']['datos']['entregados'] ?? [], 'id_receta');
+    return [in_array($recFarm['id_receta'] ?? 0, $ids), count($ids) . ' entregas', $r['ms']];
+});
+caso('CP-89', 'RF-31', 'Funcional', 'Exámenes realizados: aparece el resultado del laboratorio', 'El examen de la prueba aparece con su resultado', function () use ($admin, $rep, &$idRes, &$exLab) {
+    $r = $rep($admin, 'examenes', "&id_residente={$idRes}");
+    $x = array_values(array_filter($r['json']['data']['datos']['examenes'] ?? [], fn($e) => $e['id_examen_visita'] == ($exLab['id_examen_visita'] ?? 0)))[0] ?? null;
+    return [$x && str_contains($x['resultado'], 'Hemoglobina'), $x ? "{$x['examen']}: " . mb_substr($x['resultado'], 0, 30) : 'No aparece', $r['ms']];
+});
+caso('CP-90', 'RF-47', 'Funcional', 'Pagos a la fundación: incluye los pagos de la prueba y la cita ya no está pendiente', 'Pagos presentes y cita fuera de pendientes', function () use ($cont, $rep, &$idVis) {
+    $r = $rep($cont, 'pagos_fundacion');
+    $d = $r['json']['data']['datos'] ?? [];
+    $pagos = count(array_filter($d['pagos'] ?? [], fn($p) => (int)$p['id_visita'] === (int)$idVis));
+    $pend = count(array_filter($d['pendientes'] ?? [], fn($p) => (int)$p['id_visita'] === (int)$idVis));
+    return [$pagos >= 2 && $pend === 0, "{$pagos} pagos de la cita, pendiente: " . ($pend ? 'sí' : 'no'), $r['ms']];
+});
+caso('CP-91', 'RF-43', 'Seguridad', 'Acceso a reportes según el rol', 'Enfermera 403; contador no ve análisis médico (403)', function () use ($enf, $cont, $rep, &$idRes) {
+    $a = $enf->get('reporte', '&tipo=costos_citas');
+    $b = $rep($cont, 'analisis_medico', "&id_residente={$idRes}");
+    return [$a['http'] === 403 && $b['http'] === 403, "Enfermera HTTP {$a['http']}, contador HTTP {$b['http']}", $b['ms']];
+});
+caso('CP-92', 'RNF-03', 'Rendimiento', 'Tiempo de generación del reporte de costos de citas', 'Menos de 3 segundos', function () use ($admin, $rep) {
+    $r = $rep($admin, 'costos_citas');
+    return [$r['ms'] < 3000, "{$r['ms']} ms", $r['ms']];
+});
+
 /* ===== No funcionales ===== */
 caso('CP-51', 'RNF-03', 'Rendimiento', 'Tiempo de respuesta del panel de inicio', 'Menos de 3 segundos', function () use ($admin) {
     $r = $admin->get('dashboard');

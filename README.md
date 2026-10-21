@@ -94,7 +94,7 @@ Enunciado: **Proyecto Final 2026, Asilo de Ancianos Cabeza de Algodón**.
 - [x] Paso B: solicitudes del médico general, módulo de la fundación, agenda y visita del especialista, acompañamientos del enfermero, correo al familiar (Gmail) y configuración.
 - [x] Paso C: laboratorio (resultados) y farmacia (entregas e inventario).
 - [x] Paso D: caja (cuentas de familiares, cuotas, pagos, fundación, donaciones, gastos).
-- [x] Pruebas automatizadas: 81 casos en PHP, 41 en Python y 14 de interfaz con Playwright, todos aprobados (14 oct 2026).
+- [x] Pruebas automatizadas: 92 casos en PHP, 41 en Python y 14 de interfaz con Playwright, todos aprobados (20 oct 2026).
 - [x] Despliegue en Azure con Docker.
-- [ ] Paso E: siete reportes.
+- [x] Paso E: siete reportes (pantalla, impresión/PDF y exportación CSV).
 - [ ] Paso F: manual de usuario, plan en MS Project.

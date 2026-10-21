@@ -109,5 +109,6 @@ window.USUARIO = <?= json_encode(['id' => $u['id'], 'id_rol' => $u['id_rol'], 'n
 <script src="assets/js/atencion.js?v=<?= filemtime(__DIR__ . '/assets/js/atencion.js') ?>"></script>
 <script src="assets/js/servicios.js?v=<?= filemtime(__DIR__ . '/assets/js/servicios.js') ?>"></script>
 <script src="assets/js/caja.js?v=<?= filemtime(__DIR__ . '/assets/js/caja.js') ?>"></script>
+<script src="assets/js/reportes.js?v=<?= filemtime(__DIR__ . '/assets/js/reportes.js') ?>"></script>
 </body>
 </html>

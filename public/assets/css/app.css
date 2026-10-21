@@ -324,3 +324,43 @@ a.agenda-cita:hover { background: #f7faf8; }
 }
 .tabla td.text-end, .tabla th.text-end { white-space: nowrap; }
 .cifras .cifra { white-space: nowrap; }
+
+/* Reportes */
+.tarjetas-reporte { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .75rem; margin-bottom: 1.25rem; }
+.tarjeta-reporte { display: flex; flex-direction: column; gap: .25rem; text-align: left; background: var(--blanco); border: 1px solid var(--linea); border-radius: var(--radio); padding: .85rem 1rem; color: inherit; }
+.tarjeta-reporte i { font-size: 1.3rem; color: var(--pino); }
+.tarjeta-reporte strong { font-size: .98rem; }
+.tarjeta-reporte span { font-size: .82rem; color: var(--gris); line-height: 1.35; }
+.tarjeta-reporte:hover { border-color: var(--pino); }
+.tarjeta-reporte.activa { border: 2px solid var(--pino); background: var(--pino-claro); padding: calc(.85rem - 1px) calc(1rem - 1px); }
+.hoja-reporte { padding: 0; }
+.hoja-cab { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; border-bottom: 2px solid var(--pino); }
+.hoja-cab h2 { font-size: 1.45rem; margin: 0 0 .25rem; }
+.hoja-logo { width: 42px; height: 42px; color: var(--pino); flex: 0 0 42px; }
+.hoja-asilo { margin: 0; font-size: .85rem; color: var(--gris); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.hoja-filtros { margin: 0; font-size: .9rem; }
+.hoja-acciones { display: flex; gap: .5rem; align-items: flex-start; }
+.hoja-cuerpo { padding: 1.25rem 1.5rem; }
+.hoja-pie { padding: .75rem 1.5rem; border-top: 1px solid var(--linea); font-size: .8rem; color: var(--gris); }
+.cifras-reporte { margin-bottom: 1.25rem; }
+.cifras-reporte .cifra { font-size: 1.5rem; }
+.tabla-reporte { font-size: .9rem; }
+.cita-reporte { border: 1px solid var(--linea); border-radius: var(--radio-chico); padding: .85rem 1rem; margin-bottom: .75rem; break-inside: avoid; }
+.lista-costos { list-style: none; padding: 0; margin: .6rem 0 0; font-size: .9rem; }
+.lista-costos li { display: flex; justify-content: space-between; gap: 1rem; padding: .25rem 0; border-bottom: 1px dashed var(--linea); }
+.lista-costos li:last-child { border-bottom: 0; }
+.lista-costos li.pendiente { color: var(--gris); }
+.lista-costos s { color: var(--gris); font-size: .82rem; }
+.dl-reporte { display: grid; grid-template-columns: 150px 1fr; gap: .3rem 1rem; margin: 0 0 1rem; font-size: .92rem; }
+.dl-reporte dt { color: var(--gris); font-weight: 400; }
+.dl-reporte dd { margin: 0; }
+@media (max-width: 575.98px) { .dl-reporte { grid-template-columns: 1fr; } .hoja-cab, .hoja-cuerpo { padding: 1rem; } }
+@media print {
+    .no-imprimir, .topbar { display: none !important; }
+    main#contenido { padding: 0 !important; }
+    .hoja-reporte { border: 0 !important; }
+    .hoja-cab { padding: 0 0 .75rem; }
+    .hoja-cuerpo { padding: 1rem 0; }
+    .barra-mini span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a[href]::after { content: none; }
+}

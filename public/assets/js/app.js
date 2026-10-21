@@ -189,6 +189,7 @@ const VISTAS = {
     donaciones:      { titulo: 'Donaciones', icono: 'gift', grupo: 'Finanzas', roles: [1, 3], render: c => vistaDonaciones(c) },
     gastos:          { titulo: 'Gastos del asilo', menu: 'Gastos', icono: 'receipt', grupo: 'Finanzas', roles: [1, 3], render: c => vistaGastos(c) },
     cotizador:       { titulo: 'Cotizador de estancia', menu: 'Cotizador', icono: 'calculator', grupo: 'Finanzas', roles: [1, 3], render: vistaCotizador },
+    reportes:        { titulo: 'Reportes', icono: 'file-earmark-bar-graph', grupo: 'Reportes', roles: [1, 2, 3, 5], render: (c, p) => vistaReportes(c, p) },
     usuarios:        { titulo: 'Usuarios del sistema', menu: 'Usuarios', icono: 'person-gear', grupo: 'Administración', roles: [1], render: vistaUsuarios },
     configuracion:   { titulo: 'Configuración', icono: 'sliders', grupo: 'Administración', roles: [1], render: (c, p) => vistaConfiguracion(c, p) },
     bitacora:        { titulo: 'Bitácora de auditoría', menu: 'Bitácora', icono: 'journal-text', grupo: 'Administración', roles: [1], render: vistaBitacora },

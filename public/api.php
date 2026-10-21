@@ -88,6 +88,9 @@ $rutas = [
     'donacion_registrar'      => ['CajaController', 'registrarDonacion', [A, C], true],
     'gastos'                  => ['CajaController', 'gastos', [A, C], false],
     'gasto_registrar'         => ['CajaController', 'registrarGasto', [A, C], true],
+    // Reportes (cada reporte valida además su propio rol)
+    'reportes_opciones'       => ['ReporteController', 'opciones', [A, C, M, F], false],
+    'reporte'                 => ['ReporteController', 'generar', [A, C, M, F], false],
     'cotizador_catalogo'      => ['CotizacionController', 'catalogo', [A, C], false],
     'cotizar'                 => ['CotizacionController', 'cotizar', [A, C], true],
 
