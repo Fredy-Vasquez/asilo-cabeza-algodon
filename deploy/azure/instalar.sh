@@ -56,12 +56,16 @@ ENV
 else
     echo ".env ya existe: se conservan las contraseñas."
 fi
+# Dominio para HTTPS (nombre DNS de la IP pública en Azure). Se agrega si falta.
+grep -q '^DOMINIO=' .env || echo "DOMINIO=${DOMINIO:-asilo-cabeza-algodon.canadacentral.cloudapp.azure.com}" >> .env
+DOMINIO=$(grep '^DOMINIO=' .env | cut -d= -f2-)
+echo "Dominio HTTPS: $DOMINIO"
 
 paso "5/6 Construyendo y levantando los contenedores (la primera vez tarda 5-10 minutos)"
-$COMPOSE up -d --build
+$COMPOSE up -d --build --remove-orphans
 docker image prune -f >/dev/null 2>&1 || true
 
-paso "6/6 Verificación"
+paso "6/6 Verificación (la primera vez Caddy tarda ~1 minuto en obtener el certificado)"
 for i in $(seq 1 30); do
     if curl -fs -o /dev/null http://localhost/login.php; then break; fi
     sleep 5
@@ -70,10 +74,17 @@ $COMPOSE ps
 IP=$(curl -fs --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')
 if curl -fs -o /dev/null http://localhost/login.php; then
     echo
-    echo "LISTO. El sistema está en:  http://$IP/"
+    echo "LISTO. El sistema está en:  https://$DOMINIO/"
+    if curl -fs -o /dev/null --max-time 20 "https://$DOMINIO/login.php"; then
+        echo "Certificado HTTPS: correcto."
+    else
+        echo "AVISO: HTTPS aún no responde. Revise que el puerto 443 esté abierto en Azure (Redes > regla de entrada)"
+        echo "       y vea el registro con:  cd $DIR && $COMPOSE logs --tail=40 proxy"
+    fi
+    echo "(IP pública: $IP; por http:// se redirige automáticamente a https://)"
     echo "Cuentas de demostración: admin@asilo.com (y las demás) con la contraseña Asilo2026!"
 else
     echo "La página todavía no responde. Revise los registros con:"
-    echo "  cd $DIR && $COMPOSE logs --tail=50 web db"
+    echo "  cd $DIR && $COMPOSE logs --tail=50 proxy web db"
     exit 1
 fi

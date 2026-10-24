@@ -13,7 +13,9 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-av
  && { echo 'ServerTokens Prod'; echo 'ServerSignature Off'; \
       echo 'Header always set X-Content-Type-Options "nosniff"'; \
       echo 'Header always set X-Frame-Options "SAMEORIGIN"'; \
-      echo 'Header always set Referrer-Policy "strict-origin-when-cross-origin"'; } > /etc/apache2/conf-available/seguridad.conf \
+      echo 'Header always set Referrer-Policy "strict-origin-when-cross-origin"'; \
+      echo '# Detrás del proxy HTTPS: PHP ve la conexión como segura (cookie de sesión con Secure)'; \
+      echo 'SetEnvIf X-Forwarded-Proto "^https$" HTTPS=on'; } > /etc/apache2/conf-available/seguridad.conf \
  && a2enconf seguridad
 
 # PHP de producción: sin mostrar errores al usuario, zona horaria de Guatemala

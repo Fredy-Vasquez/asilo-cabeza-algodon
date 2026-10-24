@@ -1,0 +1,22 @@
+# Proxy inverso con HTTPS automático (Caddy + Let's Encrypt).
+# Caddy pide y renueva solo el certificado del dominio; el tráfico llega cifrado
+# y se reenvía por la red interna de Docker al contenedor web (Apache + PHP).
+{
+	email {$CORREO_CERTIFICADO}
+}
+
+# Sitio público: https://<dominio>. Lo que entre por http:// se redirige a https://
+{$DOMINIO} {
+	encode gzip
+	reverse_proxy web:80
+}
+
+# Acceso local desde la propia VM (lo usa instalar.sh para verificar)
+http://localhost, http://127.0.0.1 {
+	reverse_proxy web:80
+}
+
+# Cualquier otra dirección (por ejemplo la IP pública) se manda al dominio con HTTPS
+http:// {
+	redir https://{$DOMINIO}{uri} permanent
+}

@@ -53,17 +53,18 @@ El sistema completo corre en una máquina virtual Ubuntu de Azure con Docker (`d
 
 | Contenedor | Qué es | Expuesto a Internet |
 |---|---|---|
-| `asilo_web` | PHP 8.2 + Apache con la aplicación (`docker/web/Dockerfile`) | Sí, puerto 80 |
+| `asilo_proxy` | Caddy: HTTPS automático con Let's Encrypt (`deploy/caddy/Caddyfile`) | Sí, puertos 80 y 443 |
+| `asilo_web` | PHP 8.2 + Apache con la aplicación (`docker/web/Dockerfile`) | No (detrás del proxy) |
 | `asilo_db` | MariaDB 10.11; crea las tablas con `database/schema.sql` la primera vez | No |
 | `asilo_ms_imc`, `asilo_ms_cotizador` | Microservicios Flask | No (solo red interna) |
 
-1. En el portal de Azure cree una máquina virtual **Ubuntu Server 24.04 LTS**, tamaño **B1s** o mayor, y abra el puerto **HTTP (80)**.
+1. En el portal de Azure cree una máquina virtual **Ubuntu Server 24.04 LTS** (2 GB de RAM o más), abra los puertos **HTTP (80)** y **HTTPS (443)** y asigne a la IP pública un nombre DNS (por ejemplo `asilo-cabeza-algodon.canadacentral.cloudapp.azure.com`).
 2. En la máquina: **Operaciones > Ejecutar comando > RunShellScript** y ejecute:
    ```
    curl -fsSL https://raw.githubusercontent.com/Fredy-Vasquez/asilo-cabeza-algodon/main/deploy/azure/instalar.sh | bash
    ```
    Instala Docker, descarga el código de GitHub, genera contraseñas aleatorias en `.env` (solo en el servidor) y levanta los contenedores.
-3. Abra `http://IP-PUBLICA/` en el navegador.
+3. Abra `https://asilo-cabeza-algodon.canadacentral.cloudapp.azure.com/`. El certificado lo obtiene y renueva Caddy automáticamente; lo que entre por `http://` o por la IP se redirige a `https://`. Para otro dominio, cambie `DOMINIO=` en el `.env` del servidor y vuelva a ejecutar el script.
 
 Para actualizar después de un `git push`, ejecute el mismo comando. Otros scripts en `deploy/azure/`:
 `correo.sh` (configura el correo al familiar) y `reiniciar-datos.sh` (vuelve a los datos de ejemplo).

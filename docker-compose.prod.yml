@@ -1,7 +1,8 @@
 name: asilo-cabeza-algodon-prod
 
 # Despliegue completo en un servidor (máquina virtual de Azure):
-#   web          PHP 8.2 + Apache  -> único servicio expuesto a Internet (puerto 80)
+#   proxy        Caddy -> único servicio expuesto a Internet (80 y 443); HTTPS con Let's Encrypt
+#   web          PHP 8.2 + Apache, solo accesible a través del proxy
 #   db           MariaDB 10.11 (la misma familia que XAMPP), datos en un volumen persistente
 #   ms-imc       microservicio Flask, solo accesible dentro de la red interna
 #   ms-cotizador microservicio Flask, solo accesible dentro de la red interna
@@ -10,13 +11,32 @@ name: asilo-cabeza-algodon-prod
 # Uso:  docker compose -f docker-compose.prod.yml up -d --build
 
 services:
+  proxy:
+    image: caddy:2-alpine
+    container_name: asilo_proxy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMINIO: ${DOMINIO:-asilo-cabeza-algodon.canadacentral.cloudapp.azure.com}
+      CORREO_CERTIFICADO: ${CORREO_CERTIFICADO:-admin@asilo.com}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_datos:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+    networks: [red_asilo]
+
   web:
     build:
       context: .
       dockerfile: docker/web/Dockerfile
     container_name: asilo_web
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     environment:
       TZ: America/Guatemala
       DB_HOST: db
@@ -80,6 +100,8 @@ services:
 
 volumes:
   datos_asilo:
+  caddy_datos:     # certificados de Let's Encrypt (se conservan entre reinicios)
+  caddy_config:
 
 networks:
   red_asilo:
