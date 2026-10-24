@@ -124,13 +124,31 @@ class ResidenteController {
             $liberar = $estado === 'inactivo';
             $this->model->cambiarEstado($id, $estado, $liberar);
             if ($r['id_habitacion']) $this->habitaciones->recalcularEstado((int)$r['id_habitacion']);
-            Bitacora::registrar('CAMBIO_ESTADO_RESIDENTE', 'residentes', ['id' => $id, 'de' => $r['estado'], 'a' => $estado]);
+            $citas = 0; $saldo = 0.0;
+            if ($liberar) {
+                // ¿Y si tenía citas con especialistas pendientes? Se cancelan (las que el médico aún no inició)
+                $q = $db->prepare("UPDATE solicitudes_medicas s SET s.estado = 'Cancelada',
+                        s.notas_fundacion = CONCAT_WS('\n', NULLIF(s.notas_fundacion, ''), 'Cancelada automáticamente: el residente fue dado de baja.')
+                    WHERE s.id_residente = ? AND s.estado IN ('Pendiente', 'Programada')
+                      AND NOT EXISTS (SELECT 1 FROM visitas_medicas v WHERE v.id_solicitud = s.id_solicitud)");
+                $q->execute([$id]);
+                $citas = $q->rowCount();
+                // ¿Y si la familia todavía debe? La cuenta se conserva para seguir cobrando
+                $q = $db->prepare('SELECT (SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares WHERE id_residente = ?)
+                                        - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE id_residente = ?)');
+                $q->execute([$id, $id]);
+                $saldo = (float)$q->fetchColumn();
+            }
+            Bitacora::registrar('CAMBIO_ESTADO_RESIDENTE', 'residentes', ['id' => $id, 'de' => $r['estado'], 'a' => $estado] + ($liberar ? ['citas_canceladas' => $citas, 'saldo' => $saldo] : []));
             $db->commit();
         } catch (Throwable $e) {
             $db->rollBack();
             throw $e;
         }
         $textos = ['activo' => 'Residente marcado como activo.', 'hospitalizado' => 'Residente marcado como hospitalizado; conserva su cama.', 'inactivo' => 'Residente dado de baja; su cama quedó libre.'];
-        return ['mensaje' => $textos[$estado]];
+        $mensaje = $textos[$estado];
+        if ($citas) $mensaje .= " Se cancelaron {$citas} cita(s) pendiente(s) con especialistas.";
+        if ($saldo > 0.009) $mensaje .= ' La familia tiene un saldo pendiente de Q ' . number_format($saldo, 2) . '; la cuenta se conserva en Caja para cobrarlo.';
+        return ['mensaje' => $mensaje];
     }
 }

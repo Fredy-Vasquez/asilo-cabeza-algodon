@@ -3,9 +3,14 @@
 require_once __DIR__ . '/../src/Core/Auth.php';
 require_once __DIR__ . '/../src/Core/Bitacora.php';
 Auth::iniciarSesion();
-$u = Auth::usuario();
+$tenia = Auth::usuario() !== null;
+$u = Auth::vigente();
 if (!$u) {
-    header('Location: login.php');
+    header('Location: login.php' . ($tenia ? '?cerrada=1' : ''));
+    exit;
+}
+if (!empty($u['debe_cambiar'])) {
+    header('Location: cambiar-clave.php');
     exit;
 }
 $iniciales = implode('', array_map(fn($p) => mb_substr($p, 0, 1), array_slice(preg_split('/\s+/', preg_replace('/^(Dra?\.|Lic\.|Ing\.)\s*/', '', $u['nombre'])), 0, 2)));
@@ -43,6 +48,7 @@ $iniciales = implode('', array_map(fn($p) => mb_substr($p, 0, 1), array_slice(pr
                 <div class="text-truncate fw-bold"><?= htmlspecialchars($u['nombre']) ?></div>
                 <div class="sidebar-rol"><?= htmlspecialchars($u['rol'] === 'Medico' ? 'Médico' : $u['rol']) ?></div>
             </div>
+            <button class="btn btn-icono" id="btnMiClave" title="Cambiar mi contraseña" aria-label="Cambiar mi contraseña"><i class="bi bi-key"></i></button>
             <button class="btn btn-icono" id="btnSalir" title="Cerrar sesión" aria-label="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
         </div>
     </aside>

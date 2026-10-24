@@ -36,7 +36,7 @@ Cambie estas contraseñas desde **Usuarios** antes de usar el sistema con datos 
 
 ```
 config/           config.php (parámetros y URLs de microservicios), database.php (Singleton PDO)
-database/         schema.sql (24 tablas + datos iniciales)
+database/         schema.sql (25 tablas + datos iniciales)
 docker/           ms-imc (puerto 5001) y ms-cotizador (puerto 5002), Python/Flask
 public/           index.php (panel), login.php, api.php (Front Controller), assets/
 src/Core/         Auth (sesión y roles), Bitacora (auditoría), Http (validación y JSON)
@@ -82,9 +82,19 @@ Opcionales, con Python 3 (`pip install requests playwright` y `playwright instal
 ```
 python tests/prueba_api.py http://localhost/asilo-cabeza-algodon/public
 python tests/prueba_ui.py  http://localhost/asilo-cabeza-algodon/public
+python tests/prueba_cuentas.py http://localhost/asilo-cabeza-algodon/public   # casos "¿y si…?" de cuentas y contraseñas
 ```
 
 Las pruebas crean registros; al terminar vuelva a importar `database/schema.sql`.
+
+## Seguridad de cuentas
+
+- **¿Olvidó su contraseña?** en el login: avisa al administrador (inicio, Usuarios y correo) sin revelar si el correo existe.
+- El administrador genera una **contraseña temporal** desde Usuarios; al ingresar con ella el sistema obliga a crear una nueva (`cambiar-clave.php`). Los usuarios nuevos también la cambian al primer ingreso.
+- **Bloqueo** de 15 minutos tras 5 intentos fallidos seguidos (se avisa desde el 3.º).
+- Si el administrador desactiva a un usuario, le cambia el rol o le restablece la contraseña, **sus sesiones abiertas se cierran** en la siguiente acción.
+- Cualquier usuario puede **cambiar su contraseña** con el ícono de llave junto a "Cerrar sesión".
+- Una base de datos de una versión anterior se **actualiza sola** al iniciar sesión (`src/Core/Migraciones.php`), sin perder datos.
 
 ## Avance
 

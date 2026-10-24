@@ -1,6 +1,7 @@
 <?php
 // src/Controllers/DashboardController.php
 
+require_once __DIR__ . '/../Models/Usuario.php';
 require_once __DIR__ . '/../Models/Residente.php';
 require_once __DIR__ . '/../Models/Habitacion.php';
 require_once __DIR__ . '/../Models/EvaluacionMedica.php';
@@ -38,6 +39,7 @@ class DashboardController {
             'farmacia_pendientes' => (new Farmacia())->contarPendientes(),
             'stock_bajo' => (new Farmacia())->stockBajo(),
             'por_cobrar' => Auth::tieneRol([ROL_ADMIN, ROL_CONTADOR]) ? (new Caja())->porCobrar() : null,
+            'solicitudes_clave' => Auth::tieneRol([ROL_ADMIN]) ? (new Usuario())->contarSolicitudesClave() : 0,
         ];
     }
 }

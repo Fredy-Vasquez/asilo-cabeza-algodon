@@ -75,7 +75,7 @@ services:
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--innodb-buffer-pool-size=128M"]
     volumes:
       - datos_asilo:/var/lib/mysql
-      # Solo se ejecuta la primera vez (volumen vacío): crea las 24 tablas y los datos de ejemplo
+      # Solo se ejecuta la primera vez (volumen vacío): crea las 25 tablas y los datos de ejemplo
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]

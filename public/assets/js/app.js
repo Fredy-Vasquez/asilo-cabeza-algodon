@@ -92,7 +92,9 @@ function confirmar(titulo, texto, boton = 'Confirmar', tipo = 'danger') {
 /* Modal de formulario reutilizable */
 const modalForm = new bootstrap.Modal('#modalForm');
 let alEnviarForm = null;
+let versionForm = 0;   // si alEnviar abre otro formulario, no se restaura el botón del anterior
 function abrirForm({ titulo, cuerpo, boton = 'Guardar', alEnviar, extraPie = '' }) {
+    versionForm++;
     $('#modalFormTitulo').textContent = titulo;
     $('#modalFormCuerpo').innerHTML = cuerpo;
     $('#modalFormBoton').textContent = boton;
@@ -116,6 +118,7 @@ $('#modalFormEl').addEventListener('submit', async e => {
     }
     const boton = $('#modalFormBoton');
     const texto = boton.textContent;
+    const version = versionForm;
     boton.disabled = true;
     boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando…';
     err.textContent = '';
@@ -125,7 +128,7 @@ $('#modalFormEl').addEventListener('submit', async e => {
         err.textContent = ex.message;
     } finally {
         boton.disabled = false;
-        boton.textContent = texto;
+        if (version === versionForm) boton.textContent = texto;
     }
 });
 
@@ -230,6 +233,22 @@ async function navegar() {
 }
 function recargarVista() { return navegar(); }
 
+$('#btnMiClave').addEventListener('click', () => {
+    abrirForm({
+        titulo: 'Cambiar mi contraseña',
+        boton: 'Cambiar contraseña',
+        cuerpo: `<div class="row g-3">
+            ${campo({ nombre: 'actual', etiqueta: 'Contraseña actual', tipo: 'password', req: true, col: 'col-12', attrs: 'autocomplete="current-password"' })}
+            ${campo({ nombre: 'nueva', etiqueta: 'Contraseña nueva', tipo: 'password', req: true, attrs: 'minlength="8" autocomplete="new-password"', ayuda: 'Mínimo 8 caracteres, con letras y números.' })}
+            ${campo({ nombre: 'confirmar', etiqueta: 'Repita la nueva', tipo: 'password', req: true, attrs: 'minlength="8" autocomplete="new-password"' })}
+            <div class="col-12 form-text">Si tiene el sistema abierto en otro equipo o celular, allí se cerrará la sesión.</div></div>`,
+        alEnviar: async d => {
+            if (d.nueva !== d.confirmar) throw new Error('La confirmación no coincide con la nueva contraseña.');
+            const r = await api('cambiar_clave', d); cerrarForm(); aviso(r.mensaje);
+        },
+    });
+});
+
 $('#btnSalir').addEventListener('click', async () => {
     try { await api('logout', {}); } catch (_) { /* se redirige igual */ }
     location.href = 'login.php';
@@ -275,6 +294,8 @@ async function vistaInicio(c) {
             </section>
         </div>
         <div class="col-xl-4 d-flex flex-column gap-4">
+            ${puede(ROL.ADMIN) && d.solicitudes_clave ? `<a class="banda-aviso alerta mb-0 text-decoration-none" href="#usuarios"><i class="bi bi-key-fill"></i>
+                <span><strong>${d.solicitudes_clave} solicitud(es) de contraseña.</strong> Alguien indicó que olvidó su contraseña. Atender en Usuarios.</span></a>` : ''}
             ${puede(ROL.ADMIN, ROL.FARMACIA) && d.stock_bajo.length ? `<section class="panel">
                 <div class="panel-cab"><h2>Medicamentos por agotarse</h2><a class="ms-auto small" href="#inventario">Inventario</a></div>
                 <ul class="lista-simple panel-cuerpo">${d.stock_bajo.map(m => `<li class="d-flex justify-content-between gap-2"><span>${esc(m.nombre_comercial)}</span>${etiqueta('urgente', `${m.stock} de ${m.stock_minimo}`)}</li>`).join('')}</ul>
@@ -563,7 +584,7 @@ async function abrirExpediente(id, pestana = 'datos') {
     $$('[data-perm]', $('#expCuerpo')).forEach(b => b.addEventListener('click', () => formPermanente(r, perm.find(m => m.id_permanente == b.dataset.perm))));
     $$('[data-estado]', $('#expCuerpo')).forEach(b => b.addEventListener('click', async () => {
         const e = b.dataset.estado;
-        if (e === 'inactivo' && !await confirmar(`¿Dar de baja a ${r.nombre} ${r.apellido}?`, 'Su cama quedará libre y el expediente se conservará como histórico.', 'Dar de baja')) return;
+        if (e === 'inactivo' && !await confirmar(`¿Dar de baja a ${r.nombre} ${r.apellido}?`, 'Su cama quedará libre, se cancelarán sus citas pendientes con especialistas y el expediente y la cuenta se conservarán como histórico.', 'Dar de baja')) return;
         try {
             const res = await api('residente_estado', { id_residente: r.id_residente, estado: e });
             aviso(res.mensaje);
@@ -897,12 +918,33 @@ async function vistaCotizador(c) {
    ================================================================ */
 async function vistaUsuarios(c) {
     $('#accionesVista').innerHTML = `<button class="btn btn-primary" id="btnNuevoUsr"><i class="bi bi-person-plus me-1"></i> Crear usuario</button>`;
-    const { usuarios, roles, especialidades } = await api('usuarios');
-    $('#btnNuevoUsr').onclick = () => formUsuario(null, roles, especialidades);
-    c.innerHTML = `<section class="panel"><div class="panel-cab"><input type="search" class="form-control" style="max-width:300px" id="buscarUsr" placeholder="Buscar por nombre, correo o rol" aria-label="Buscar usuario"></div>
+    const { usuarios, roles, especialidades, solicitudes_clave: solicitudes, correo_listo: correoListo } = await api('usuarios');
+    const ctx = { roles, especialidades, correoListo };
+    $('#btnNuevoUsr').onclick = () => formUsuario(null, ctx);
+    c.innerHTML = `${solicitudes.length ? `<section class="panel mb-4 panel-aviso">
+            <div class="panel-cab"><h2><i class="bi bi-key-fill me-2"></i>Solicitudes de contraseña</h2><span class="ms-auto text-secondary small">Desde "¿Olvidó su contraseña?" en el login</span></div>
+            <div>${solicitudes.map(s => `<div class="alerta-item atencion">
+                <div class="flex-grow-1"><strong>${esc(s.nombre)}</strong> <span class="text-secondary">· ${esc(s.nombre_rol)}</span>
+                    <p>${esc(s.email)} · pidió ayuda el ${fmtFechaHora(s.creada_en)}</p></div>
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
+                    <button class="btn btn-primary btn-sm" data-restablecer="${s.id_usuario}"><i class="bi bi-key me-1"></i>Generar temporal</button>
+                    <button class="btn btn-outline-secondary btn-sm" data-descartar="${s.id_solicitud_clave}">Descartar</button>
+                </div></div>`).join('')}</div></section>` : ''}
+        <section class="panel"><div class="panel-cab"><input type="search" class="form-control" style="max-width:300px" id="buscarUsr" placeholder="Buscar por nombre, correo o rol" aria-label="Buscar usuario"></div>
         <div class="table-responsive"><table class="table tabla">
         <thead><tr><th>Usuario</th><th>Rol</th><th>Teléfono</th><th>Último acceso</th><th>Estado</th></tr></thead>
         <tbody id="tbUsr"></tbody></table></div></section>`;
+    $$('[data-restablecer]').forEach(b => b.onclick = () => restablecerClave(usuarios.find(u => u.id_usuario == b.dataset.restablecer), correoListo));
+    $$('[data-descartar]').forEach(b => b.onclick = async () => {
+        if (!await confirmar('¿Descartar la solicitud?', 'Úselo si la persona no la reconoce o ya recuperó su acceso. No se cambia ninguna contraseña.', 'Descartar', 'secondary')) return;
+        try { aviso((await api('solicitud_clave_descartar', { id_solicitud_clave: b.dataset.descartar })).mensaje); recargarVista(); } catch (ex) { aviso(ex.message, 'error'); }
+    });
+    const estadoUsr = u => {
+        if (u.estado !== 'activo') return etiqueta('inactivo', 'Desactivado');
+        if (u.bloqueado_hasta) return etiqueta('urgente', `Bloqueado hasta ${String(u.bloqueado_hasta).slice(11, 16)}`);
+        if (+u.debe_cambiar_clave) return etiqueta('atencion', 'Contraseña temporal');
+        return etiqueta('activo', 'Activo');
+    };
     const pintar = (q = '') => {
         q = q.toLowerCase();
         const f = usuarios.filter(u => `${u.nombre} ${u.email} ${u.nombre_rol} ${u.especialidad || ''}`.toLowerCase().includes(q));
@@ -911,10 +953,10 @@ async function vistaUsuarios(c) {
             <td>${esc(u.nombre_rol)}${u.especialidad ? `<br><small class="text-secondary">${esc(u.especialidad)}</small>` : ''}</td>
             <td>${esc(u.telefono || '—')}</td>
             <td>${u.ultimo_acceso ? fmtFechaHora(u.ultimo_acceso) : '<span class="text-secondary">Nunca</span>'}</td>
-            <td>${etiqueta(u.estado === 'activo' ? 'activo' : 'inactivo', u.estado === 'activo' ? 'Activo' : 'Desactivado')}</td></tr>`).join('')
+            <td>${estadoUsr(u)}</td></tr>`).join('')
             || `<tr><td colspan="5">${vacio('search', 'Ningún usuario coincide con la búsqueda.')}</td></tr>`;
         $$('#tbUsr tr.clic').forEach(tr => {
-            const abrir = () => formUsuario(usuarios.find(u => u.id_usuario == tr.dataset.id), roles, especialidades);
+            const abrir = () => formUsuario(usuarios.find(u => u.id_usuario == tr.dataset.id), ctx);
             tr.addEventListener('click', abrir);
             tr.addEventListener('keydown', e => { if (e.key === 'Enter') abrir(); });
         });
@@ -923,8 +965,42 @@ async function vistaUsuarios(c) {
     pintar();
 }
 
-function formUsuario(u, roles, especialidades) {
+/* Contraseña temporal: el admin la genera, se muestra una sola vez y opcionalmente se envía por correo */
+function restablecerClave(u, correoListo) {
+    abrirForm({
+        titulo: 'Restablecer contraseña',
+        boton: 'Generar contraseña temporal',
+        cuerpo: `<p class="mb-3">Se generará una contraseña temporal para <strong>${esc(u.nombre)}</strong> (${esc(u.email)}).</p>
+            <ul class="mb-3 text-secondary"><li>Se cerrarán sus sesiones abiertas y se desbloqueará la cuenta.</li>
+                <li>Al ingresar con la temporal, el sistema le pedirá crear una contraseña nueva.</li></ul>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="f_enviar_correo" name="enviar_correo" ${correoListo ? 'checked' : 'disabled'}>
+                <label class="form-check-label" for="f_enviar_correo">Enviársela también por correo a ${esc(u.email)}</label>
+                ${correoListo ? '' : '<div class="form-text">El envío de correos no está configurado; entréguesela en persona o por teléfono.</div>'}</div>`,
+        alEnviar: async d => {
+            const r = await api('usuario_restablecer', { id_usuario: u.id_usuario, enviar_correo: !!d.enviar_correo });
+            const correo = !r.correo ? 'Entréguesela en persona o por teléfono.'
+                : r.correo.estado === 'Enviado' ? `También se envió por correo a ${esc(u.email)}.`
+                : `No se pudo enviar el correo (${esc(r.correo.detalle || r.correo.estado)}); entréguesela en persona.`;
+            abrirForm({
+                titulo: 'Contraseña temporal generada',
+                boton: 'Listo',
+                cuerpo: `<p>Contraseña temporal de <strong>${esc(u.nombre)}</strong>:</p>
+                    <div class="clave-temporal mb-2" id="claveTemp">${esc(r.clave_temporal)}</div>
+                    <div class="text-center mb-3"><button type="button" class="btn btn-outline-primary btn-sm" id="copiarClave"><i class="bi bi-clipboard me-1"></i>Copiar</button></div>
+                    <p class="mb-1">${correo}</p>
+                    <p class="text-secondary small mb-0">Por seguridad, esta contraseña no se vuelve a mostrar. Si se pierde, genere otra.</p>`,
+                alEnviar: async () => { cerrarForm(); recargarVista(); },
+            });
+            $('#copiarClave').onclick = async () => {
+                try { await navigator.clipboard.writeText(r.clave_temporal); aviso('Contraseña copiada.'); } catch (_) { aviso('Selecciónela y cópiela con Ctrl+C.', 'aviso'); }
+            };
+        },
+    });
+}
+
+function formUsuario(u, { roles, especialidades, correoListo }) {
     const v = u || { estado: 'activo' };
+    const propio = u && +u.id_usuario === +U.id;
     abrirForm({
         titulo: u ? u.nombre : 'Crear usuario',
         boton: u ? 'Guardar cambios' : 'Crear usuario',
@@ -939,8 +1015,12 @@ function formUsuario(u, roles, especialidades) {
                 <select class="form-select" id="f_id_especialidad" name="id_especialidad" ${+v.id_rol === ROL.ESPECIALISTA ? 'required' : 'disabled'}>
                     <option value="">Seleccione…</option>${especialidades.map(e => `<option value="${e.id_especialidad}" ${e.id_especialidad == v.id_especialidad ? 'selected' : ''}>${esc(e.nombre)}</option>`).join('')}</select></div>
             ${selector({ nombre: 'estado', etiqueta: 'Estado', valor: v.estado, req: true, vacio: null, opciones: [{ v: 'activo', t: 'Activo' }, { v: 'inactivo', t: 'Desactivado (no puede ingresar)' }] })}
-            ${campo({ nombre: 'password', etiqueta: u ? 'Nueva contraseña' : 'Contraseña', tipo: 'password', req: !u, col: 'col-12', attrs: 'minlength="8" autocomplete="new-password"',
-                ayuda: (u ? 'Déjela vacía para conservar la actual. ' : '') + 'Mínimo 8 caracteres, con letras y números. Se guarda cifrada con Bcrypt.' })}
+            ${campo({ nombre: 'password', etiqueta: u ? 'Nueva contraseña' : 'Contraseña inicial', tipo: 'password', req: !u, col: 'col-12', attrs: 'minlength="8" autocomplete="new-password"',
+                ayuda: (u ? 'Déjela vacía para conservar la actual. ' : '') + 'Mínimo 8 caracteres, con letras y números. Se guarda cifrada con Bcrypt.'
+                    + (propio ? '' : ' Es temporal: al ingresar, el usuario deberá cambiarla.') })}
+            ${u && !propio && u.estado === 'activo' ? `<div class="col-12"><div class="banda-aviso d-flex align-items-center gap-3 flex-wrap mb-0">
+                <div class="flex-grow-1"><strong>¿Olvidó su contraseña?</strong><br><span class="small">Genere una temporal sin tener que inventarla.${u.bloqueado_hasta ? ' La cuenta está bloqueada por intentos fallidos; esto también la desbloquea.' : ''}</span></div>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btnRestablecer"><i class="bi bi-key me-1"></i>Generar temporal</button></div></div>` : ''}
         </div>`,
         alEnviar: async d => { const r = await api('usuario_guardar', d); cerrarForm(); aviso(r.mensaje); recargarVista(); },
     });
@@ -953,6 +1033,7 @@ function formUsuario(u, roles, especialidades) {
     };
     selRol.addEventListener('change', actualizar);
     actualizar();
+    $('#btnRestablecer')?.addEventListener('click', () => restablecerClave(u, correoListo));
 }
 
 /* ================================================================
@@ -970,6 +1051,10 @@ const NOMBRES_ACCION = {
     VISITA_RECETA: 'Visita: medicamento recetado', VISITA_QUITA_RECETA: 'Visita: receta quitada', VISITA_FINALIZADA: 'Visita finalizada',
     CONFIGURACION: 'Cambio de configuración', CORREO_PRUEBA: 'Correo de prueba',
     REGISTRO_USUARIO: 'Creación de usuario', ACTUALIZA_USUARIO: 'Edición de usuario', INSTALACION: 'Instalación del sistema',
+    LOGIN_BLOQUEADO: 'Intento con cuenta bloqueada', CUENTA_BLOQUEADA: 'Cuenta bloqueada por intentos fallidos',
+    SOLICITUD_CLAVE: '¿Olvidó su contraseña? (solicitud)', SOLICITUD_CLAVE_IGNORADA: '¿Olvidó su contraseña? (correo no registrado)',
+    RESTABLECE_CLAVE: 'Contraseña temporal generada', DESCARTA_SOLICITUD_CLAVE: 'Solicitud de contraseña descartada',
+    CAMBIO_CLAVE: 'Cambio de contraseña propia', CAMBIO_CLAVE_FALLIDO: 'Cambio de contraseña fallido',
 };
 
 async function vistaBitacora(c) {

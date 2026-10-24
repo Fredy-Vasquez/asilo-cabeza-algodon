@@ -1,6 +1,6 @@
 -- ============================================================
 -- ASILO "CABEZA DE ALGODÓN" - Sistema de administración
--- Script DDL (24 tablas) + datos iniciales. MySQL / MariaDB (XAMPP)
+-- Script DDL (25 tablas) + datos iniciales. MySQL / MariaDB (XAMPP)
 -- Importar completo en phpMyAdmin: pestaña "Importar" > schema.sql
 -- ADVERTENCIA: borra y vuelve a crear todas las tablas.
 -- ============================================================
@@ -12,7 +12,7 @@ COLLATE utf8mb4_unicode_ci;
 USE asilo_cabeza_algodon;
 
 SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS notificaciones_correo, bitacora_auditoria, gastos, donaciones,
+DROP TABLE IF EXISTS solicitudes_clave, notificaciones_correo, bitacora_auditoria, gastos, donaciones,
                      pagos_fundacion, pagos_familiares, cargos_familiares,
                      recetas_visita, examenes_visita, examenes_catalogo, visitas_medicas,
                      solicitudes_medicas, evaluaciones_medicas, medicamentos_permanentes,
@@ -50,11 +50,31 @@ CREATE TABLE usuarios (
     password_hash VARCHAR(255) NOT NULL,
     estado ENUM('activo', 'inactivo') DEFAULT 'activo',
     ultimo_acceso DATETIME NULL,
+    debe_cambiar_clave TINYINT(1) NOT NULL DEFAULT 0,  -- contraseña temporal: se pide cambiarla al ingresar
+    intentos_fallidos INT NOT NULL DEFAULT 0,          -- 5 intentos fallidos bloquean la cuenta 15 minutos
+    bloqueado_hasta DATETIME NULL,
+    sesion_version INT NOT NULL DEFAULT 0,             -- al cambiar, se cierran las sesiones abiertas del usuario
     creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_usuarios_roles FOREIGN KEY (id_rol)
         REFERENCES roles(id_rol) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_usuarios_especialidad FOREIGN KEY (id_especialidad)
         REFERENCES especialidades(id_especialidad) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 3b. SOLICITUDES DE RESTABLECIMIENTO DE CONTRASEÑA ("¿Olvidó su contraseña?")
+--     El usuario la crea desde el login; el administrador la atiende generando una contraseña temporal.
+CREATE TABLE solicitudes_clave (
+    id_solicitud_clave INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    estado ENUM('Pendiente', 'Atendida', 'Descartada') NOT NULL DEFAULT 'Pendiente',
+    ip VARCHAR(45) NULL,
+    creada_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atendida_en DATETIME NULL,
+    atendida_por INT NULL,
+    CONSTRAINT fk_solclave_usuario FOREIGN KEY (id_usuario)
+        REFERENCES usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_solclave_admin FOREIGN KEY (atendida_por)
+        REFERENCES usuarios(id_usuario) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- 4. CONFIGURACIÓN GENERAL (descuento de la fundación, datos del asilo)

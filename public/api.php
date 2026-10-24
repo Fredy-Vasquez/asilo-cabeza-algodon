@@ -97,6 +97,11 @@ $rutas = [
     // Administración
     'usuarios'                => ['UsuarioController', 'listar', [A], false],
     'usuario_guardar'         => ['UsuarioController', 'guardar', [A], true],
+    'usuario_restablecer'     => ['UsuarioController', 'restablecer', [A], true],
+    'solicitud_clave_descartar' => ['UsuarioController', 'descartarSolicitudClave', [A], true],
+
+    // Cuenta propia (cualquier usuario con sesión)
+    'cambiar_clave'           => ['CuentaController', 'cambiarClave', [], true],
     'configuracion'           => ['ConfiguracionController', 'obtener', [A], false],
     'configuracion_guardar'   => ['ConfiguracionController', 'guardar', [A], true],
     'correo_probar'           => ['ConfiguracionController', 'probarCorreo', [A], true],
@@ -115,6 +120,14 @@ try {
         Http::json(['status' => 'success', 'data' => $u]);
         exit;
     }
+    if ($accion === 'olvide_clave') {
+        // Pública (sin sesión): "¿Olvidó su contraseña?" desde el login
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new HttpError('Método no permitido.', 405);
+        Auth::verificarCsrf();
+        require_once __DIR__ . '/../src/Controllers/CuentaController.php';
+        Http::json(['status' => 'success', 'data' => (new CuentaController())->olvideClave($entrada)]);
+        exit;
+    }
     if ($accion === 'logout') {
         Bitacora::registrar('LOGOUT', 'usuarios', 'Cierre de sesión');
         Auth::cerrar();
@@ -130,7 +143,11 @@ try {
     if (!isset($rutas[$accion])) throw new HttpError('Acción no válida o no especificada.', 404);
     [$clase, $metodo, $roles, $modifica] = $rutas[$accion];
 
-    Auth::exigir($roles);
+    $sesion = Auth::exigir($roles);
+    // Con contraseña temporal solo se permite cambiarla
+    if (!empty($sesion['debe_cambiar']) && $accion !== 'cambiar_clave') {
+        throw new HttpError('Debe cambiar su contraseña temporal antes de continuar.', 403);
+    }
     if ($modifica) {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new HttpError('Método no permitido.', 405);
         Auth::verificarCsrf();

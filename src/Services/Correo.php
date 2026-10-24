@@ -51,7 +51,7 @@ class Correo {
      */
     public static function enviar(?string $para, string $asunto, string $html, ?int $idSolicitud = null): array {
         if (!$para || !filter_var($para, FILTER_VALIDATE_EMAIL)) {
-            return self::registrar($idSolicitud, $para ?: '(sin correo)', $asunto, $html, 'Sin correo', 'El familiar no tiene correo electrónico registrado.');
+            return self::registrar($idSolicitud, $para ?: '(sin correo)', $asunto, $html, 'Sin correo', 'El destinatario no tiene correo electrónico registrado.');
         }
         $estado = self::estado();
         if (!$estado['listo']) {
@@ -220,10 +220,10 @@ class Correo {
         $nombre = htmlspecialchars(APP_NOMBRE);
         $t = htmlspecialchars($titulo);
         return <<<HTML
-<!DOCTYPE html><html lang="es"><body style="margin:0;background:#f5f7f5;font-family:Arial,Helvetica,sans-serif;color:#1b2622">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7f5;padding:24px 12px"><tr><td align="center">
+<!DOCTYPE html><html lang="es"><body style="margin:0;background:#f3f3f4;font-family:Arial,Helvetica,sans-serif;color:#1b2622">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f3f4;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #dce3e0;border-radius:10px">
-<tr><td style="background:#1f4d42;color:#ffffff;padding:18px 24px;border-radius:10px 10px 0 0;font-size:18px;font-weight:bold">{$nombre}</td></tr>
+<tr><td style="background:#14213D;color:#ffffff;padding:18px 24px;border-radius:10px 10px 0 0;border-bottom:4px solid #FCA311;font-size:18px;font-weight:bold">{$nombre}</td></tr>
 <tr><td style="padding:24px;font-size:15px;line-height:1.55">
 <h1 style="font-size:19px;margin:0 0 14px">{$t}</h1>
 {$contenido}

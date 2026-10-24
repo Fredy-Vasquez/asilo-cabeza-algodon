@@ -508,3 +508,17 @@ html:not([data-bs-theme=dark]) .login-demo button { color: #b36b00; }
     *, *::before, *::after { transition: none !important; }
 }
 .campo-linea input::placeholder { color: currentColor; opacity: .45; }
+
+/* ---------- Cuenta: ¿Olvidó su contraseña? y cambio de contraseña ---------- */
+.olvido-enlace { margin: -.6rem 0 1.2rem; text-align: right; font-size: .9rem; }
+.olvido-enlace button { background: none; border: 0; padding: 0; color: var(--oro); font-weight: 700; text-decoration: underline; }
+html:not([data-bs-theme=dark]) .olvido-enlace button { color: #b36b00; }
+.vidrio-avatar > i { font-size: 2.4rem; color: var(--oro); }
+.login-solo { grid-template-columns: minmax(0, 1fr); justify-items: center; padding-top: 5rem; }
+.reglas-clave { list-style: none; padding: 0; margin: -.4rem 0 1.4rem; font-size: .88rem; display: grid; gap: .2rem; }
+.reglas-clave li { opacity: .75; }
+.reglas-clave li::before { content: '\F28A'; font-family: 'bootstrap-icons'; margin-right: .45rem; }
+.reglas-clave li.cumple { opacity: 1; color: #74d9a6; }
+html:not([data-bs-theme=dark]) .reglas-clave li.cumple { color: #1f6a41; }
+.reglas-clave li.cumple::before { content: "\F26A"; }
+.clave-temporal { font-family: var(--fuente-titulo); font-size: 1.9rem; font-weight: 700; letter-spacing: .04em; background: var(--maiz-suave); color: var(--texto); border: 2px dashed var(--acento); border-radius: var(--radio); padding: .6rem 1rem; text-align: center; user-select: all; }
