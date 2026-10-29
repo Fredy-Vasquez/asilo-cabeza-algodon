@@ -223,7 +223,7 @@ async function navegar() {
     $('#accionesVista').innerHTML = '';
     document.title = `${v.titulo} | Asilo Cabeza de Algodón`;
     const c = $('#contenido');
-    c.innerHTML = '<div class="cargando"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Cargando…</span></div></div>';
+    c.innerHTML = '<div class="cargando"><div class="spinner-border text-warning" role="status"><span class="visually-hidden">Cargando…</span></div></div>';
     bootstrap.Offcanvas.getInstance('#sidebar')?.hide();
     try {
         await v.render(c, params);
@@ -1091,6 +1091,11 @@ function detalleBitacora(d) {
    Se espera a DOMContentLoaded para que los módulos (atencion.js, …) ya estén cargados. */
 document.addEventListener('DOMContentLoaded', () => {
     construirMenu();
-    window.addEventListener('hashchange', navegar);
+    window.addEventListener('hashchange', () => {
+        // Al cambiar de pantalla se cierran el expediente y los formularios que quedaron abiertos
+        bootstrap.Offcanvas.getInstance('#panelExpediente')?.hide();
+        bootstrap.Modal.getInstance('#modalForm')?.hide();
+        navegar();
+    });
     navegar();
 });
