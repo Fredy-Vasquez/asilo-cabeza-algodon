@@ -289,6 +289,10 @@ CREATE TABLE examenes_visita (
     resultado TEXT,
     fecha_resultado DATETIME NULL,
     id_laboratorista INT NULL,
+    resultado_original TEXT NULL,                    -- si el laboratorio corrige el resultado, se conserva el primero
+    motivo_correccion VARCHAR(255) NULL,
+    corregido_por INT NULL,
+    corregido_en DATETIME NULL,
     CONSTRAINT fk_exv_visita FOREIGN KEY (id_visita)
         REFERENCES visitas_medicas(id_visita) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_exv_examen FOREIGN KEY (id_examen)
@@ -355,6 +359,10 @@ CREATE TABLE pagos_familiares (
     observaciones VARCHAR(255),
     id_usuario INT NULL,
     registrado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+    anulado TINYINT(1) NOT NULL DEFAULT 0,          -- un registro equivocado se anula con motivo, nunca se borra
+    motivo_anulacion VARCHAR(255) NULL,
+    anulado_por INT NULL,
+    anulado_en DATETIME NULL,
     CONSTRAINT fk_pagofam_residente FOREIGN KEY (id_residente)
         REFERENCES residentes(id_residente) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_pagofam_usuario FOREIGN KEY (id_usuario)
@@ -371,6 +379,10 @@ CREATE TABLE pagos_fundacion (
     referencia VARCHAR(60),
     id_usuario INT NULL,
     registrado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+    anulado TINYINT(1) NOT NULL DEFAULT 0,          -- un registro equivocado se anula con motivo, nunca se borra
+    motivo_anulacion VARCHAR(255) NULL,
+    anulado_por INT NULL,
+    anulado_en DATETIME NULL,
     CONSTRAINT fk_pagofund_visita FOREIGN KEY (id_visita)
         REFERENCES visitas_medicas(id_visita) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_pagofund_usuario FOREIGN KEY (id_usuario)
@@ -388,6 +400,10 @@ CREATE TABLE donaciones (
     fecha DATE NOT NULL,
     comprobante VARCHAR(60),
     id_usuario INT NULL,
+    anulado TINYINT(1) NOT NULL DEFAULT 0,          -- un registro equivocado se anula con motivo, nunca se borra
+    motivo_anulacion VARCHAR(255) NULL,
+    anulado_por INT NULL,
+    anulado_en DATETIME NULL,
     CONSTRAINT fk_donacion_usuario FOREIGN KEY (id_usuario)
         REFERENCES usuarios(id_usuario) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
@@ -402,6 +418,10 @@ CREATE TABLE gastos (
     fecha DATE NOT NULL,
     comprobante VARCHAR(60),
     id_usuario INT NULL,
+    anulado TINYINT(1) NOT NULL DEFAULT 0,          -- un registro equivocado se anula con motivo, nunca se borra
+    motivo_anulacion VARCHAR(255) NULL,
+    anulado_por INT NULL,
+    anulado_en DATETIME NULL,
     CONSTRAINT fk_gasto_usuario FOREIGN KEY (id_usuario)
         REFERENCES usuarios(id_usuario) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
@@ -499,7 +519,7 @@ INSERT INTO planes_servicio (nombre_plan, costo_base, descripcion) VALUES
 
 INSERT INTO familiares (nombre, apellido, telefono, email, parentesco, documento_id, direccion) VALUES
 ('María', 'López Pérez', '5512-3487', 'maria.lopez@correo.com', 'Hija', '2456781230101', 'Barrio San Antonio, Mazatenango'),
-('José', 'García Ramírez', '4478-9012', 'jose.garcia@correo.com', 'Hijo', '1987654320901', 'Zona 1, Cuyotenango'),
+('José', 'García Ramírez', '4478-9012', 'jose.garcia@correo.com', 'Hijo', '1987654360901', 'Zona 1, Cuyotenango'),
 ('Ana', 'Morales de León', '3021-6655', NULL, 'Sobrina', '3012457890101', 'Colonia Las Flores, Mazatenango');
 
 INSERT INTO residentes (id_familiar, id_habitacion, id_plan, nombre, apellido, fecha_nacimiento, genero, fecha_ingreso, motivo_ingreso, observaciones) VALUES

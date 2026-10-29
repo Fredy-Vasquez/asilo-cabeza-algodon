@@ -83,6 +83,7 @@ Opcionales, con Python 3 (`pip install requests playwright` y `playwright instal
 python tests/prueba_api.py http://localhost/asilo-cabeza-algodon/public
 python tests/prueba_ui.py  http://localhost/asilo-cabeza-algodon/public
 python tests/prueba_cuentas.py http://localhost/asilo-cabeza-algodon/public   # casos "¿y si…?" de cuentas y contraseñas
+python tests/prueba_casos_limite.py http://localhost/asilo-cabeza-algodon/public  # DPI, teléfono, cuotas proporcionales, anulaciones, correcciones
 ```
 
 Las pruebas crean registros; al terminar vuelva a importar `database/schema.sql`.
@@ -94,6 +95,10 @@ Las pruebas crean registros; al terminar vuelva a importar `database/schema.sql`
 - **Bloqueo** de 15 minutos tras 5 intentos fallidos seguidos (se avisa desde el 3.º).
 - Si el administrador desactiva a un usuario, le cambia el rol o le restablece la contraseña, **sus sesiones abiertas se cierran** en la siguiente acción.
 - Cualquier usuario puede **cambiar su contraseña** con el ícono de llave junto a "Cerrar sesión".
+- **DPI** validado como CUI de Guatemala (13 dígitos, departamento, municipio y dígito verificador); teléfonos de 8 dígitos; nombres solo con letras.
+- **Anular** pagos, pagos a la fundación, donaciones y gastos equivocados con motivo (no se borran; dejan de contar en saldos y reportes).
+- **Corregir** un resultado de laboratorio con motivo; el resultado original queda guardado.
+- **Cuota proporcional** para el residente que ingresa a mitad de mes.
 - Una base de datos de una versión anterior se **actualiza sola** al iniciar sesión (`src/Core/Migraciones.php`), sin perder datos.
 
 ## Avance

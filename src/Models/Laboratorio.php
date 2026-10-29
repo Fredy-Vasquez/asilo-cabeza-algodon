@@ -16,7 +16,7 @@ class Laboratorio {
     private const SELECT = "SELECT ev.*, ec.nombre AS examen,
             v.fecha_visita, v.id_solicitud, v.id_residente, v.estado AS visita_estado,
             r.nombre AS residente_nombre, r.apellido AS residente_apellido, h.numero_habitacion,
-            med.nombre AS medico, esp.nombre AS especialidad, lab.nombre AS laboratorista,
+            med.nombre AS medico, esp.nombre AS especialidad, lab.nombre AS laboratorista, cor.nombre AS corregido_por_nombre,
             ROUND(ev.precio * (1 - ev.descuento_pct / 100), 2) AS precio_neto
         FROM examenes_visita ev
         JOIN examenes_catalogo ec ON ec.id_examen = ev.id_examen
@@ -26,7 +26,8 @@ class Laboratorio {
         JOIN usuarios med ON med.id_usuario = v.id_medico
         JOIN solicitudes_medicas s ON s.id_solicitud = v.id_solicitud
         JOIN especialidades esp ON esp.id_especialidad = s.id_especialidad
-        LEFT JOIN usuarios lab ON lab.id_usuario = ev.id_laboratorista";
+        LEFT JOIN usuarios lab ON lab.id_usuario = ev.id_laboratorista
+        LEFT JOIN usuarios cor ON cor.id_usuario = ev.corregido_por";
 
     /** Pendientes primero (los más antiguos arriba), luego los realizados más recientes */
     public function listar(?string $estado = null): array {
@@ -51,6 +52,15 @@ class Laboratorio {
             "UPDATE examenes_visita SET estado = 'Realizado', resultado = ?, fecha_resultado = NOW(), id_laboratorista = ?
              WHERE id_examen_visita = ? AND estado = 'Solicitado'"
         )->execute([$resultado, $idUsuario, $id]);
+    }
+
+    /** Guarda el primer resultado en resultado_original (solo la primera vez) y deja el corregido */
+    public function corregirResultado(int $id, string $resultado, string $motivo, int $idUsuario): void {
+        $this->db->prepare(
+            'UPDATE examenes_visita SET resultado_original = COALESCE(resultado_original, resultado), resultado = ?,
+                    motivo_correccion = ?, corregido_por = ?, corregido_en = NOW()
+             WHERE id_examen_visita = ?'
+        )->execute([$resultado, $motivo, $idUsuario, $id]);
     }
 
     public function contarPendientes(): int {

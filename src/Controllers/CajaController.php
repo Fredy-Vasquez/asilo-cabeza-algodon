@@ -81,7 +81,7 @@ class CajaController {
     public function cuotasPreview(array $in): array {
         $periodo = $this->periodo($in);
         $filas = $this->model->residentesParaCuota($periodo);
-        foreach ($filas as &$f) $f['monto'] = round((float)$f['costo_plan'] + (float)$f['costo_habitacion'], 2);
+        foreach ($filas as &$f) $f += self::cuota($f, $periodo);
         unset($f);
         return ['periodo' => $periodo, 'residentes' => $filas];
     }
@@ -96,10 +96,11 @@ class CajaController {
             $generadas = 0; $omitidas = 0; $total = 0.0;
             foreach ($this->model->residentesParaCuota($periodo) as $r) {
                 if ((int)$r['ya_tiene']) { $omitidas++; continue; }
-                $monto = round((float)$r['costo_plan'] + (float)$r['costo_habitacion'], 2);
+                $c = self::cuota($r, $periodo);
+                $monto = $c['monto'];
                 if ($monto <= 0) { $omitidas++; continue; }
-                $concepto = "Cuota de {$mes}: " . ($r['nombre_plan'] ?: 'sin plan') .
-                    ((float)$r['costo_habitacion'] > 0 ? " + habitación {$r['tipo_habitacion']}" : '');
+                $concepto = ($c['proporcional'] ? "Cuota proporcional de {$mes} ({$c['dias']} de {$c['dias_mes']} días, desde su ingreso)" : "Cuota de {$mes}") . ': ' .
+                    ($r['nombre_plan'] ?: 'sin plan') . ((float)$r['costo_habitacion'] > 0 ? " + habitación {$r['tipo_habitacion']}" : '');
                 $this->model->cargarCuota((int)$r['id_residente'], $periodo, $concepto, $monto, Auth::id());
                 $generadas++; $total += $monto;
             }
@@ -169,6 +170,7 @@ class CajaController {
         $porTipo = [];
         foreach ($lista as $d) {
             $k = $d['tipo_donante'];
+            if ((int)$d['anulado']) continue;
             $porTipo[$k] = ($porTipo[$k] ?? 0) + ($d['tipo_donacion'] === 'Monetaria' ? (float)$d['monto'] : 0);
         }
         return ['donaciones' => $lista, 'por_tipo' => $porTipo, 'tipos_donante' => Caja::TIPOS_DONANTE, 'tipos_donacion' => Caja::TIPOS_DONACION];
@@ -198,7 +200,7 @@ class CajaController {
         [$desde, $hasta] = $this->rango($in);
         $lista = $this->model->gastos($desde, $hasta);
         $porCat = [];
-        foreach ($lista as $g) $porCat[$g['categoria']] = ($porCat[$g['categoria']] ?? 0) + (float)$g['monto'];
+        foreach ($lista as $g) if (!(int)$g['anulado']) $porCat[$g['categoria']] = ($porCat[$g['categoria']] ?? 0) + (float)$g['monto'];
         arsort($porCat);
         return ['gastos' => $lista, 'por_categoria' => $porCat, 'categorias' => Caja::CATEGORIAS_GASTO];
     }
@@ -216,6 +218,49 @@ class CajaController {
         $id = $this->model->registrarGasto($d);
         Bitacora::registrar('GASTO', 'gastos', ['id' => $id] + $d);
         return ['id' => $id, 'mensaje' => 'Gasto registrado.'];
+    }
+
+    /**
+     * Cuota del mes. ¿Y si el residente ingresó a mitad de mes? Se cobra solo la parte del mes
+     * desde su fecha de ingreso (cuota proporcional). Quien ingresa el día 1 paga el mes completo.
+     */
+    private static function cuota(array $r, string $periodo): array {
+        $completa = round((float)$r['costo_plan'] + (float)$r['costo_habitacion'], 2);
+        $diasMes = (int)date('t', strtotime($periodo . '-01'));
+        $ingreso = (string)($r['fecha_ingreso'] ?? '');
+        if ($ingreso !== '' && substr($ingreso, 0, 7) === $periodo && (int)substr($ingreso, 8, 2) > 1) {
+            $dias = $diasMes - (int)substr($ingreso, 8, 2) + 1;
+            return ['monto' => round($completa * $dias / $diasMes, 2), 'cuota_completa' => $completa,
+                    'proporcional' => true, 'dias' => $dias, 'dias_mes' => $diasMes];
+        }
+        return ['monto' => $completa, 'cuota_completa' => $completa, 'proporcional' => false, 'dias' => $diasMes, 'dias_mes' => $diasMes];
+    }
+
+    /* ---------- Anulación ---------- */
+
+    /** Un pago, donación o gasto equivocado se anula con motivo: deja de contar en saldos y reportes, pero no se borra */
+    public function anular(array $in): array {
+        $tipo = Http::opcion($in, 'tipo', array_keys(Caja::ANULABLES), null, 'Tipo de registro');
+        $id = Http::entero($in, 'id', true, 1, null, 'Registro');
+        $motivo = Http::texto($in, 'motivo', true, 255, 'Motivo de la anulación');
+        if (mb_strlen($motivo) < 10) throw new HttpError('Explique el motivo de la anulación (al menos 10 caracteres).', 422);
+        $nombres = ['pago' => 'El pago', 'pago_fundacion' => 'El pago a la fundación', 'donacion' => 'La donación', 'gasto' => 'El gasto'];
+        $anulado = $tipo === 'donacion' ? 'anulada' : 'anulado';
+
+        $db = Database::conn();
+        $db->beginTransaction();
+        try {
+            $reg = $this->model->registroAnulable($tipo, $id);
+            if (!$reg) throw new HttpError('El registro no existe.', 404);
+            if ((int)$reg['anulado']) throw new HttpError("{$nombres[$tipo]} ya estaba {$anulado}.", 409);
+            $this->model->anular($tipo, $id, $motivo, Auth::id());
+            Bitacora::registrar('ANULACION', Caja::ANULABLES[$tipo][0], ['id' => $id, 'monto' => $reg['monto'], 'fecha' => $reg['fecha'], 'motivo' => $motivo]);
+            $db->commit();
+        } catch (Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+        return ['mensaje' => "{$nombres[$tipo]} de Q " . number_format((float)$reg['monto'], 2) . " quedó {$anulado} y ya no cuenta en saldos ni reportes. Sigue visible, tachado y con el motivo."];
     }
 
     /* ---------- Utilidades ---------- */

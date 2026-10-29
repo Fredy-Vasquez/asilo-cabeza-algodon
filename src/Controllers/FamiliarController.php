@@ -18,9 +18,9 @@ class FamiliarController {
     public function guardar(array $in): array {
         $id = Http::entero($in, 'id_familiar');
         $d = [
-            'nombre'       => Http::texto($in, 'nombre', true, 100, 'Nombre'),
-            'apellido'     => Http::texto($in, 'apellido', true, 100, 'Apellidos'),
-            'telefono'     => Http::texto($in, 'telefono', true, 20, 'Teléfono'),
+            'nombre'       => Http::nombrePersona($in, 'nombre', true, 100, 'Nombre'),
+            'apellido'     => Http::nombrePersona($in, 'apellido', true, 100, 'Apellidos'),
+            'telefono'     => Http::telefono(isset($in['telefono']) ? (string)$in['telefono'] : null, true, 'teléfono'),
             'email'        => Http::texto($in, 'email', false, 100, 'Correo'),
             'parentesco'   => Http::texto($in, 'parentesco', true, 50, 'Parentesco'),
             'documento_id' => Http::texto($in, 'documento_id', true, 30, 'DPI'),
@@ -29,10 +29,7 @@ class FamiliarController {
         if ($d['email'] !== null && !filter_var($d['email'], FILTER_VALIDATE_EMAIL)) {
             throw new HttpError('El correo del familiar no tiene un formato válido.', 422);
         }
-        if (!preg_match('/^[0-9+\-\s()]{8,20}$/', $d['telefono'])) {
-            throw new HttpError('El teléfono debe tener al menos 8 dígitos.', 422);
-        }
-        $d['documento_id'] = preg_replace('/\s+/', '', $d['documento_id']);
+        $d['documento_id'] = self::validarDpi($d['documento_id'], $id ? ($this->model->obtener($id)['documento_id'] ?? null) : null);
         if ($this->model->existeDocumento($d['documento_id'], $id)) {
             throw new HttpError('Ya existe un familiar registrado con ese DPI.', 409);
         }
@@ -46,6 +43,14 @@ class FamiliarController {
         $id = $this->model->crear($d);
         Bitacora::registrar('REGISTRO_FAMILIAR', 'familiares', ['id' => $id] + $d);
         return ['id' => $id, 'mensaje' => 'Familiar registrado.'];
+    }
+
+    /** El DPI se valida completo al registrarlo o cambiarlo; uno ya guardado que no se modifica se respeta */
+    public static function validarDpi(?string $dpi, ?string $anterior): ?string {
+        if ($dpi === null) return null;
+        $limpio = preg_replace('/[\s-]/', '', $dpi);
+        if ($anterior !== null && $limpio === $anterior) return $anterior;
+        return Http::dpi($dpi);
     }
 
     public function eliminar(array $in): array {

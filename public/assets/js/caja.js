@@ -25,6 +25,26 @@ function camposPago(metodos = METODOS) {
    ================================================================ */
 let mesCaja = null;
 
+/* ¿Y si se registró un pago, donación o gasto por error? Se anula con motivo: deja de contar, pero no se borra */
+const puedeAnular = () => puede(ROL.ADMIN, ROL.CONTADOR);
+const botonAnular = (tipo, id) => puedeAnular() ? `<button class="btn btn-link btn-sm text-danger p-0" data-anular="${tipo}:${id}" title="Anular este registro">Anular</button>` : '';
+const marcaAnulado = x => +x.anulado ? `<small class="d-block">${etiqueta('urgente', 'Anulado')} <span class="text-secondary">${esc(x.motivo_anulacion || '')}${x.anulado_por_nombre ? ` (${esc(x.anulado_por_nombre)})` : ''}</span></small>` : '';
+function activarAnular(raiz, descripcion) {
+    $$('[data-anular]', raiz).forEach(b => b.addEventListener('click', () => {
+        const [tipo, id] = b.dataset.anular.split(':');
+        abrirForm({
+            titulo: 'Anular registro',
+            boton: 'Anular',
+            cuerpo: `<p>${descripcion(tipo, id)}</p>
+                <div class="row g-3">${textoArea({ nombre: 'motivo', etiqueta: 'Motivo de la anulación', req: true, filas: 2, attrs: 'maxlength="255" minlength="10" placeholder="Ej.: se registró dos veces el mismo depósito"' })}</div>
+                <p class="small text-secondary mt-3 mb-0"><i class="bi bi-info-circle me-1"></i>El registro no se borra: queda tachado, con el motivo y su nombre, y deja de contar en saldos, caja y reportes. Esta acción no se puede deshacer.</p>`,
+            alEnviar: async d => { const res = await api('caja_anular', { tipo, id, motivo: d.motivo }); cerrarForm(); aviso(res.mensaje); recargarVista(); },
+        });
+        $('#modalFormBoton').className = 'btn btn-danger';
+        $('#modalForm').addEventListener('hidden.bs.modal', () => { $('#modalFormBoton').className = 'btn btn-primary'; }, { once: true });
+    }));
+}
+
 async function vistaCaja(c) {
     mesCaja = mesCaja || mesActual();
     $('#accionesVista').innerHTML = `<label class="visually-hidden" for="mesCaja">Mes</label>
@@ -144,11 +164,13 @@ async function formCuotas(periodo = mesActual()) {
         boton: pend.length ? `Generar ${pend.length} cuota(s)` : 'Generar',
         cuerpo: `<div class="row g-3 mb-3">${campo({ nombre: 'periodo', etiqueta: 'Mes', tipo: 'month', valor: d.periodo, req: true, col: 'col-sm-6' })}</div>
             <p class="small text-secondary">La cuota de cada residente es el costo de su plan más el recargo de su habitación. No lleva el descuento de la fundación,
-                que solo aplica a consultas, exámenes y medicamentos. Si un residente ya tiene la cuota de ese mes, no se duplica.</p>
+                que solo aplica a consultas, exámenes y medicamentos. Si un residente ya tiene la cuota de ese mes, no se duplica.
+                Quien ingresó a mitad de mes paga solo los días desde su ingreso (cuota proporcional); quien ingresó el día 1 paga el mes completo.</p>
             <div class="table-responsive"><table class="table tabla"><thead><tr><th>Residente</th><th>Plan</th><th class="text-end">Habitación</th><th class="text-end">Cuota</th></tr></thead><tbody>
             ${d.residentes.map(r => `<tr class="${+r.ya_tiene ? 'opacity-50' : ''}"><td>${esc(r.nombre)} ${esc(r.apellido)}${+r.ya_tiene ? ' <span class="small">(ya generada)</span>' : ''}</td>
                 <td>${esc(r.nombre_plan || 'Sin plan')}<small class="d-block text-secondary">${fmtQ(r.costo_plan)}</small></td>
-                <td class="text-end">${+r.costo_habitacion ? `${esc(r.tipo_habitacion)} +${fmtQ(r.costo_habitacion)}` : '—'}</td><td class="text-end">${fmtQ(r.monto)}</td></tr>`).join('')}
+                <td class="text-end">${+r.costo_habitacion ? `${esc(r.tipo_habitacion)} +${fmtQ(r.costo_habitacion)}` : '—'}</td>
+                <td class="text-end">${fmtQ(r.monto)}${r.proporcional ? `<small class="d-block text-secondary">proporcional: ${r.dias} de ${r.dias_mes} días<br>(ingresó el ${fmtFecha(r.fecha_ingreso)}; mes completo ${fmtQ(r.cuota_completa)})</small>` : ''}</td></tr>`).join('')}
             </tbody><tfoot><tr class="fila-total"><td colspan="3">Total a generar en ${nombreMes(d.periodo)}</td><td class="text-end">${fmtQ(total)}</td></tr></tfoot></table></div>`,
         alEnviar: async f => {
             if (f.periodo !== d.periodo) { cerrarForm(); setTimeout(() => formCuotas(f.periodo), 350); return; }
@@ -180,15 +202,18 @@ async function vistaCuenta(c, params) {
             <div><div class="cifra">${fmtQ(d.pagado)}</div><p>total pagado</p></div>
             <div><div class="cifra ${+d.saldo > 0 ? 'texto-achiote' : 'texto-vida'}">${fmtQ(d.saldo)}</div><p>${+d.saldo > 0 ? 'saldo pendiente' : 'cuenta al día'}</p></div></div>
         <section class="panel"><div class="table-responsive"><table class="table tabla mb-0">
-            <thead><tr><th>Fecha</th><th>Concepto</th><th class="text-end">Cargo</th><th class="text-end">Pago</th><th class="text-end">Saldo</th></tr></thead><tbody>
-            ${d.movimientos.length ? d.movimientos.map(m => `<tr>
+            <thead><tr><th>Fecha</th><th>Concepto</th><th class="text-end">Cargo</th><th class="text-end">Pago</th><th class="text-end">Saldo</th><th class="no-imprimir"></th></tr></thead><tbody>
+            ${d.movimientos.length ? d.movimientos.map(m => `<tr class="${+m.anulado ? 'fila-anulada' : ''}">
                 <td class="text-nowrap">${fmtFecha(m.fecha)}</td>
-                <td><span class="tipo-mov">${esc(m.tipo)}</span> ${esc(m.concepto)}${+m.descuento ? `<small class="d-block text-secondary">Precio ${fmtQ(m.monto_bruto)} menos ${fmtQ(m.descuento)} de descuento de la fundación</small>` : ''}${m.referencia ? `<small class="d-block text-secondary">Ref. ${esc(m.referencia)}</small>` : ''}</td>
+                <td><span class="tipo-mov">${esc(m.tipo)}</span> ${esc(m.concepto)}${+m.descuento ? `<small class="d-block text-secondary">Precio ${fmtQ(m.monto_bruto)} menos ${fmtQ(m.descuento)} de descuento de la fundación</small>` : ''}${m.referencia ? `<small class="d-block text-secondary">Ref. ${esc(m.referencia)}</small>` : ''}${marcaAnulado(m)}</td>
                 <td class="text-end">${m.clase === 'cargo' ? fmtQ(m.monto) : ''}</td>
-                <td class="text-end texto-vida">${m.clase === 'pago' ? fmtQ(m.monto) : ''}</td>
-                <td class="text-end"><strong>${fmtQ(m.saldo)}</strong></td></tr>`).join('')
-                : `<tr><td colspan="5">${vacio('journal', 'La cuenta no tiene movimientos.')}</td></tr>`}
+                <td class="text-end texto-vida monto">${m.clase === 'pago' ? fmtQ(m.monto) : ''}</td>
+                <td class="text-end"><strong>${fmtQ(m.saldo)}</strong></td>
+                <td class="text-end no-imprimir">${m.clase === 'pago' && !+m.anulado ? botonAnular('pago', m.id) : ''}</td></tr>`).join('')
+                : `<tr><td colspan="6">${vacio('journal', 'La cuenta no tiene movimientos.')}</td></tr>`}
             </tbody></table></div></section>`;
+    activarAnular(c, (t, idPago) => { const m = d.movimientos.find(x => x.clase === 'pago' && x.id == idPago);
+        return `Pago de <strong>${fmtQ(m.monto)}</strong> del ${fmtFecha(m.fecha)} (${esc(m.metodo)}${m.referencia ? `, ref. ${esc(m.referencia)}` : ''}). El saldo de la cuenta volverá a subir en ese monto.`; });
 }
 
 /* ================================================================
@@ -212,9 +237,10 @@ async function vistaFundacionPagos(c) {
         <thead><tr><th>Cita</th><th>Residente</th><th class="text-end">Consulta</th><th class="text-end">Exámenes</th><th class="text-end">Medicamentos</th><th class="text-end">Total</th><th class="text-end">Pagado</th><th>Estado</th><th></th></tr></thead>
         <tbody id="tbFun"></tbody></table></div></section>
         <section class="panel"><div class="panel-cab"><h2>Pagos realizados a la fundación</h2></div>
-        ${pagos.length ? `<div class="table-responsive"><table class="table tabla mb-0"><thead><tr><th>Fecha</th><th>Cita</th><th>Forma</th><th>Referencia</th><th class="text-end">Monto</th></tr></thead><tbody>
-            ${pagos.map(p => { const ci = citas.find(x => x.id_visita == p.id_visita); return `<tr><td>${fmtFecha(p.fecha)}</td>
-                <td>${ci ? `${esc(ci.residente_nombre)} ${esc(ci.residente_apellido)}, ${esc(ci.especialidad)}` : `Visita ${p.id_visita}`}</td><td>${esc(p.metodo)}</td><td>${esc(p.referencia || '—')}</td><td class="text-end">${fmtQ(p.monto)}</td></tr>`; }).join('')}
+        ${pagos.length ? `<div class="table-responsive"><table class="table tabla mb-0"><thead><tr><th>Fecha</th><th>Cita</th><th>Forma</th><th>Referencia</th><th class="text-end">Monto</th><th></th></tr></thead><tbody>
+            ${pagos.map(p => { const ci = citas.find(x => x.id_visita == p.id_visita); return `<tr class="${+p.anulado ? 'fila-anulada' : ''}"><td>${fmtFecha(p.fecha)}</td>
+                <td>${ci ? `${esc(ci.residente_nombre)} ${esc(ci.residente_apellido)}, ${esc(ci.especialidad)}` : `Visita ${p.id_visita}`}${marcaAnulado(p)}</td><td>${esc(p.metodo)}</td><td>${esc(p.referencia || '—')}</td><td class="text-end monto">${fmtQ(p.monto)}</td>
+                <td class="text-end">${+p.anulado ? '' : botonAnular('pago_fundacion', p.id_pago_fundacion)}</td></tr>`; }).join('')}
             </tbody></table></div>` : vacio('bank', 'Todavía no se ha pagado nada a la fundación.')}</section>`;
     const pintar = () => {
         const q = filtroFund.q.toLowerCase();
@@ -232,6 +258,8 @@ async function vistaFundacionPagos(c) {
     };
     activarFiltros('fun', filtroFund, pintar);
     pintar();
+    activarAnular(c, (t, idP) => { const p = pagos.find(x => x.id_pago_fundacion == idP);
+        return `Pago a la fundación de <strong>${fmtQ(p.monto)}</strong> del ${fmtFecha(p.fecha)}. La cita volverá a quedar pendiente por ese monto.`; });
 }
 
 function formPagoFundacion(x) {
@@ -277,19 +305,22 @@ async function vistaDonaciones(c) {
     $('#accionesVista').innerHTML = `<button class="btn btn-primary" id="btnDon"><i class="bi bi-plus-lg me-1"></i> Registrar donación</button>`;
     const d = await api('donaciones', null, qsRango(rangoDon));
     $('#btnDon').onclick = () => formDonacion(d);
-    const total = d.donaciones.filter(x => x.tipo_donacion === 'Monetaria').reduce((s, x) => s + +x.monto, 0);
-    const especie = d.donaciones.filter(x => x.tipo_donacion === 'En especie').reduce((s, x) => s + +x.monto, 0);
+    const vigentes = d.donaciones.filter(x => !+x.anulado);
+    const total = vigentes.filter(x => x.tipo_donacion === 'Monetaria').reduce((s, x) => s + +x.monto, 0);
+    const especie = vigentes.filter(x => x.tipo_donacion === 'En especie').reduce((s, x) => s + +x.monto, 0);
     c.innerHTML = `<div class="cifras">
             <div><div class="cifra">${fmtQ(total)}</div><p>donado en dinero</p></div>
             ${d.tipos_donante.map(t => `<div><div class="cifra">${fmtQ(d.por_tipo[t] || 0)}</div><p>${esc(t.toLowerCase())}</p></div>`).join('')}</div>
         ${especie > 0 ? `<p class="small text-secondary">Además hay ${fmtQ(especie)} en donaciones en especie (valor estimado).</p>` : ''}
         <section class="panel"><div class="panel-cab">${filtroRango('don', rangoDon)}</div>
-        <div class="table-responsive"><table class="table tabla mb-0"><thead><tr><th>Fecha</th><th>Donante</th><th>Tipo de donante</th><th>Detalle</th><th class="text-end">Monto</th></tr></thead><tbody>
-        ${d.donaciones.length ? d.donaciones.map(x => `<tr><td class="text-nowrap">${fmtFecha(x.fecha)}</td><td><strong>${esc(x.donante)}</strong>${x.comprobante ? `<small class="d-block text-secondary">Recibo ${esc(x.comprobante)}</small>` : ''}</td>
-            <td>${esc(x.tipo_donante)}</td><td>${x.tipo_donacion === 'En especie' ? etiqueta('neutro', 'En especie') + ' ' : ''}${esc(x.descripcion || '')}</td>
-            <td class="text-end">${fmtQ(x.monto)}</td></tr>`).join('') : `<tr><td colspan="5">${vacio('gift', 'No hay donaciones en este rango.')}</td></tr>`}
+        <div class="table-responsive"><table class="table tabla mb-0"><thead><tr><th>Fecha</th><th>Donante</th><th>Tipo de donante</th><th>Detalle</th><th class="text-end">Monto</th><th></th></tr></thead><tbody>
+        ${d.donaciones.length ? d.donaciones.map(x => `<tr class="${+x.anulado ? 'fila-anulada' : ''}"><td class="text-nowrap">${fmtFecha(x.fecha)}</td><td><strong>${esc(x.donante)}</strong>${x.comprobante ? `<small class="d-block text-secondary">Recibo ${esc(x.comprobante)}</small>` : ''}</td>
+            <td>${esc(x.tipo_donante)}</td><td>${x.tipo_donacion === 'En especie' ? etiqueta('neutro', 'En especie') + ' ' : ''}${esc(x.descripcion || '')}${marcaAnulado(x)}</td>
+            <td class="text-end monto">${fmtQ(x.monto)}</td><td class="text-end">${+x.anulado ? '' : botonAnular('donacion', x.id_donacion)}</td></tr>`).join('') : `<tr><td colspan="6">${vacio('gift', 'No hay donaciones en este rango.')}</td></tr>`}
         </tbody></table></div></section>`;
     activarRango('don', rangoDon);
+    activarAnular(c, (t, idD) => { const x = d.donaciones.find(y => y.id_donacion == idD);
+        return `Donación de <strong>${esc(x.donante)}</strong> por ${fmtQ(x.monto)} del ${fmtFecha(x.fecha)}.`; });
 }
 
 function formDonacion(d) {
@@ -314,20 +345,23 @@ async function vistaGastos(c) {
     $('#accionesVista').innerHTML = `<button class="btn btn-primary" id="btnGas"><i class="bi bi-plus-lg me-1"></i> Registrar gasto</button>`;
     const d = await api('gastos', null, qsRango(rangoGas));
     $('#btnGas').onclick = () => formGasto(d);
-    const total = d.gastos.reduce((s, x) => s + +x.monto, 0);
+    const total = d.gastos.filter(x => !+x.anulado).reduce((s, x) => s + +x.monto, 0);
     const cats = Object.entries(d.por_categoria);
     const max = Math.max(0, ...cats.map(([, v]) => v));
     c.innerHTML = `<div class="row g-4"><div class="col-xl-8">
         <section class="panel"><div class="panel-cab">${filtroRango('gas', rangoGas)}</div>
-        <div class="table-responsive"><table class="table tabla mb-0"><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th class="text-end">Monto</th></tr></thead><tbody>
-        ${d.gastos.length ? d.gastos.map(x => `<tr><td class="text-nowrap">${fmtFecha(x.fecha)}</td><td>${esc(x.categoria)}</td>
-            <td>${esc(x.descripcion)}${x.comprobante ? `<small class="d-block text-secondary">Factura ${esc(x.comprobante)}</small>` : ''}</td><td class="text-end">${fmtQ(x.monto)}</td></tr>`).join('')
-            : `<tr><td colspan="4">${vacio('receipt', 'No hay gastos en este rango.')}</td></tr>`}
-        </tbody>${d.gastos.length ? `<tfoot><tr class="fila-total"><td colspan="3">Total</td><td class="text-end">${fmtQ(total)}</td></tr></tfoot>` : ''}</table></div></section></div>
+        <div class="table-responsive"><table class="table tabla mb-0"><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th class="text-end">Monto</th><th></th></tr></thead><tbody>
+        ${d.gastos.length ? d.gastos.map(x => `<tr class="${+x.anulado ? 'fila-anulada' : ''}"><td class="text-nowrap">${fmtFecha(x.fecha)}</td><td>${esc(x.categoria)}</td>
+            <td>${esc(x.descripcion)}${x.comprobante ? `<small class="d-block text-secondary">Factura ${esc(x.comprobante)}</small>` : ''}${marcaAnulado(x)}</td><td class="text-end monto">${fmtQ(x.monto)}</td>
+            <td class="text-end">${+x.anulado ? '' : botonAnular('gasto', x.id_gasto)}</td></tr>`).join('')
+            : `<tr><td colspan="5">${vacio('receipt', 'No hay gastos en este rango.')}</td></tr>`}
+        </tbody>${d.gastos.length ? `<tfoot><tr class="fila-total"><td colspan="3">Total (sin anulados)</td><td class="text-end">${fmtQ(total)}</td><td></td></tr></tfoot>` : ''}</table></div></section></div>
         <div class="col-xl-4"><section class="panel"><div class="panel-cab"><h2>Por categoría</h2></div><div class="panel-cuerpo">
         ${cats.length ? `<table class="table tabla-totales mb-0"><tbody>${cats.map(([k, v]) => `<tr><td>${esc(k)}${barra(v, max)}</td><td class="text-end text-nowrap align-top">${fmtQ(v)}</td></tr>`).join('')}</tbody></table>`
             : vacio('pie-chart', 'Sin datos.')}</div></section></div></div>`;
     activarRango('gas', rangoGas);
+    activarAnular(c, (t, idG) => { const x = d.gastos.find(y => y.id_gasto == idG);
+        return `Gasto de <strong>${fmtQ(x.monto)}</strong> (${esc(x.categoria)}: ${esc(x.descripcion)}) del ${fmtFecha(x.fecha)}.`; });
 }
 
 function formGasto(d) {

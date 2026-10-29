@@ -67,6 +67,7 @@ $rutas = [
     'laboratorio_resultado'   => ['LaboratorioController', 'registrarResultado', [A, L], true],
     'examenes_catalogo'       => ['LaboratorioController', 'catalogo', [A, L], false],
     'examen_guardar'          => ['LaboratorioController', 'guardarExamen', [A, L], true],
+    'laboratorio_corregir'    => ['LaboratorioController', 'corregirResultado', [A, L], true],
 
     // Farmacia: entrega de recetas e inventario
     'farmacia'                => ['FarmaciaController', 'listar', [A, R], false],
@@ -88,6 +89,7 @@ $rutas = [
     'donacion_registrar'      => ['CajaController', 'registrarDonacion', [A, C], true],
     'gastos'                  => ['CajaController', 'gastos', [A, C], false],
     'gasto_registrar'         => ['CajaController', 'registrarGasto', [A, C], true],
+    'caja_anular'             => ['CajaController', 'anular', [A, C], true],
     // Reportes (cada reporte valida además su propio rol)
     'reportes_opciones'       => ['ReporteController', 'opciones', [A, C, M, F], false],
     'reporte'                 => ['ReporteController', 'generar', [A, C, M, F], false],

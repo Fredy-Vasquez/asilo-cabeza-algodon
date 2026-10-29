@@ -32,7 +32,7 @@ class UsuarioController {
             'nombre'   => Http::texto($in, 'nombre', true, 100, 'Nombre'),
             'email'    => mb_strtolower((string)Http::texto($in, 'email', true, 100, 'Correo')),
             'id_rol'   => Http::opcion(['v' => (string)($in['id_rol'] ?? '')], 'v', ['1', '2', '3', '4', '5', '6', '7', '8'], null, 'Rol'),
-            'telefono' => Http::texto($in, 'telefono', false, 20, 'Teléfono'),
+            'telefono' => Http::telefono(isset($in['telefono']) ? (string)$in['telefono'] : null, false, 'teléfono'),
             'id_especialidad' => Http::entero($in, 'id_especialidad', false, 1, null, 'Especialidad'),
             'estado'   => Http::opcion($in, 'estado', ['activo', 'inactivo'], 'activo', 'Estado'),
             'password' => (string)($in['password'] ?? ''),

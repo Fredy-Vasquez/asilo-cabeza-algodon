@@ -132,6 +132,24 @@ $('#modalFormEl').addEventListener('submit', async e => {
     }
 });
 
+/* Filtros al escribir: el DPI y el teléfono solo aceptan números; los nombres, solo letras.
+   (El servidor vuelve a validar todo: esto solo evita errores de dedo.) */
+document.addEventListener('input', e => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement)) return;
+    let v = el.value, limpio = v;
+    if (el.hasAttribute('data-dpi')) limpio = v.replace(/[^\d\s-]/g, '');
+    else if (el.hasAttribute('data-tel')) limpio = v.replace(/[^\d\s\-+()]/g, '');
+    else if (el.hasAttribute('data-solo-letras')) limpio = v.replace(/[^\p{L}\s.'\-]/gu, '');
+    if (limpio !== v) {
+        const pos = el.selectionStart - (v.length - limpio.length);
+        el.value = limpio;
+        try { el.setSelectionRange(pos, pos); } catch (_) { /* tipos sin selección */ }
+        el.classList.add('is-invalid');
+        setTimeout(() => el.classList.remove('is-invalid'), 700);
+    }
+});
+
 function datosForm(form) {
     const d = {};
     for (const el of form.elements) {
@@ -450,9 +468,9 @@ async function formResidente(r = null, preseleccion = {}) {
         <input type="hidden" name="id_residente" value="${esc(v.id_residente || '')}">
         <h3 class="form-seccion">Datos personales</h3>
         <div class="row g-3">
-            ${campo({ nombre: 'nombre', etiqueta: 'Nombres', valor: v.nombre, req: true, attrs: 'maxlength="100"' })}
-            ${campo({ nombre: 'apellido', etiqueta: 'Apellidos', valor: v.apellido, req: true, attrs: 'maxlength="100"' })}
-            ${campo({ nombre: 'documento_id', etiqueta: 'DPI', valor: v.documento_id, col: 'col-md-4', attrs: 'maxlength="20" inputmode="numeric"', ayuda: 'Opcional' })}
+            ${campo({ nombre: 'nombre', etiqueta: 'Nombres', valor: v.nombre, req: true, attrs: 'maxlength="100" data-solo-letras' })}
+            ${campo({ nombre: 'apellido', etiqueta: 'Apellidos', valor: v.apellido, req: true, attrs: 'maxlength="100" data-solo-letras' })}
+            ${campo({ nombre: 'documento_id', etiqueta: 'DPI', valor: v.documento_id, col: 'col-md-4', attrs: 'maxlength="15" inputmode="numeric" data-dpi pattern="\\d{4}[ \\-]?\\d{5}[ \\-]?\\d{4}" placeholder="2456 78123 0101"', ayuda: 'Opcional. 13 dígitos, solo números' })}
             ${campo({ nombre: 'fecha_nacimiento', etiqueta: 'Fecha de nacimiento', tipo: 'date', valor: v.fecha_nacimiento, req: true, col: 'col-md-4', attrs: `max="${hoy()}"` })}
             ${selector({ nombre: 'genero', etiqueta: 'Género', valor: v.genero, req: true, col: 'col-md-4', opciones: [{ v: 'F', t: 'Femenino' }, { v: 'M', t: 'Masculino' }, { v: 'Otro', t: 'Otro' }] })}
         </div>
@@ -751,12 +769,12 @@ function formFamiliar(a = null, despues = null) {
         boton: a ? 'Guardar cambios' : 'Registrar familiar',
         cuerpo: `<input type="hidden" name="id_familiar" value="${esc(v.id_familiar || '')}">
         <div class="row g-3">
-            ${campo({ nombre: 'nombre', etiqueta: 'Nombres', valor: v.nombre, req: true, attrs: 'maxlength="100"' })}
-            ${campo({ nombre: 'apellido', etiqueta: 'Apellidos', valor: v.apellido, req: true, attrs: 'maxlength="100"' })}
-            ${campo({ nombre: 'documento_id', etiqueta: 'DPI', valor: v.documento_id, req: true, attrs: 'maxlength="20" inputmode="numeric"' })}
+            ${campo({ nombre: 'nombre', etiqueta: 'Nombres', valor: v.nombre, req: true, attrs: 'maxlength="100" data-solo-letras' })}
+            ${campo({ nombre: 'apellido', etiqueta: 'Apellidos', valor: v.apellido, req: true, attrs: 'maxlength="100" data-solo-letras' })}
+            ${campo({ nombre: 'documento_id', etiqueta: 'DPI', valor: v.documento_id, req: true, attrs: 'maxlength="15" inputmode="numeric" data-dpi pattern="\\d{4}[ \\-]?\\d{5}[ \\-]?\\d{4}" placeholder="2456 78123 0101"', ayuda: '13 dígitos, solo números' })}
             ${campo({ nombre: 'parentesco', etiqueta: 'Parentesco', valor: v.parentesco, req: true, attrs: 'maxlength="50" list="parentescos"' })}
             <datalist id="parentescos"><option>Hijo</option><option>Hija</option><option>Esposo</option><option>Esposa</option><option>Hermano</option><option>Hermana</option><option>Sobrino</option><option>Sobrina</option><option>Nieto</option><option>Nieta</option><option>Tutor legal</option></datalist>
-            ${campo({ nombre: 'telefono', etiqueta: 'Teléfono', tipo: 'tel', valor: v.telefono, req: true, attrs: 'maxlength="20" pattern="[0-9+\\-\\s()]{8,20}"', ayuda: 'Ej.: 5512-3487' })}
+            ${campo({ nombre: 'telefono', etiqueta: 'Teléfono', tipo: 'tel', valor: v.telefono, req: true, attrs: 'maxlength="15" inputmode="tel" data-tel pattern="(\\+?502)?[ \\-]?[2-7]\\d{3}[ \\-]?\\d{4}"', ayuda: '8 dígitos, ej.: 5512-3487' })}
             ${campo({ nombre: 'email', etiqueta: 'Correo electrónico', tipo: 'email', valor: v.email, attrs: 'maxlength="100"', ayuda: 'Se usará para avisos al familiar' })}
             <div class="col-12"><label class="form-label" for="f_dir">Dirección</label><input class="form-control" id="f_dir" name="direccion" maxlength="500" value="${esc(v.direccion || '')}"></div>
         </div>`,
@@ -1008,7 +1026,7 @@ function formUsuario(u, { roles, especialidades, correoListo }) {
             ${campo({ nombre: 'nombre', etiqueta: 'Nombre completo', valor: v.nombre, req: true, attrs: 'maxlength="100"' })}
             ${campo({ nombre: 'email', etiqueta: 'Correo (usuario de acceso)', tipo: 'email', valor: v.email, req: true, attrs: 'maxlength="100"' })}
             ${selector({ nombre: 'id_rol', etiqueta: 'Rol', valor: v.id_rol, req: true, opciones: roles.map(r => ({ v: r.id_rol, t: r.nombre_rol })) })}
-            ${campo({ nombre: 'telefono', etiqueta: 'Teléfono', tipo: 'tel', valor: v.telefono, attrs: 'maxlength="20"' })}
+            ${campo({ nombre: 'telefono', etiqueta: 'Teléfono', tipo: 'tel', valor: v.telefono, attrs: 'maxlength="15" inputmode="tel" data-tel pattern="(\\+?502)?[ \\-]?[2-7]\\d{3}[ \\-]?\\d{4}"', ayuda: '8 dígitos' })}
             <div class="col-12 form-text mt-1" id="descRol"></div>
             <div class="col-md-6 ${+v.id_rol === ROL.ESPECIALISTA ? '' : 'd-none'}" id="grupoEsp">
                 <label class="form-label requerido" for="f_id_especialidad">Especialidad</label>
@@ -1055,6 +1073,7 @@ const NOMBRES_ACCION = {
     SOLICITUD_CLAVE: '¿Olvidó su contraseña? (solicitud)', SOLICITUD_CLAVE_IGNORADA: '¿Olvidó su contraseña? (correo no registrado)',
     RESTABLECE_CLAVE: 'Contraseña temporal generada', DESCARTA_SOLICITUD_CLAVE: 'Solicitud de contraseña descartada',
     CAMBIO_CLAVE: 'Cambio de contraseña propia', CAMBIO_CLAVE_FALLIDO: 'Cambio de contraseña fallido',
+    ANULACION: 'Anulación en caja (con motivo)', LAB_CORRECCION: 'Corrección de resultado de laboratorio',
 };
 
 async function vistaBitacora(c) {

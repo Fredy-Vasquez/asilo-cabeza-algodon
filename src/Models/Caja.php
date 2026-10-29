@@ -38,7 +38,7 @@ class Caja {
              LEFT JOIN habitaciones h ON h.id_habitacion = r.id_habitacion
              LEFT JOIN planes_servicio p ON p.id_plan = r.id_plan
              LEFT JOIN (SELECT id_residente, SUM(monto) AS cargado FROM cargos_familiares GROUP BY id_residente) c ON c.id_residente = r.id_residente
-             LEFT JOIN (SELECT id_residente, SUM(monto) AS pagado, MAX(fecha) AS ultimo_pago FROM pagos_familiares GROUP BY id_residente) pg ON pg.id_residente = r.id_residente
+             LEFT JOIN (SELECT id_residente, SUM(monto) AS pagado, MAX(fecha) AS ultimo_pago FROM pagos_familiares WHERE anulado = 0 GROUP BY id_residente) pg ON pg.id_residente = r.id_residente
              ORDER BY saldo DESC, r.nombre"
         )->fetchAll();
     }
@@ -46,7 +46,7 @@ class Caja {
     public function saldo(int $idResidente): float {
         $stmt = $this->db->prepare(
             'SELECT (SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares WHERE id_residente = ?)
-                  - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE id_residente = ?)'
+                  - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE id_residente = ? AND anulado = 0)'
         );
         $stmt->execute([$idResidente, $idResidente]);
         return round((float)$stmt->fetchColumn(), 2);
@@ -55,14 +55,16 @@ class Caja {
     /** Movimientos (cargos y pagos) en orden con saldo acumulado */
     public function estadoCuenta(int $idResidente): array {
         $cargos = $this->db->prepare(
-            "SELECT 'cargo' AS clase, id_cargo AS id, fecha, tipo, concepto, monto_bruto, descuento, monto, periodo, id_visita, NULL AS metodo, NULL AS referencia
+            "SELECT 'cargo' AS clase, id_cargo AS id, fecha, tipo, concepto, monto_bruto, descuento, monto, periodo, id_visita, NULL AS metodo, NULL AS referencia,
+                    0 AS anulado, NULL AS motivo_anulacion
              FROM cargos_familiares WHERE id_residente = ?"
         );
         $cargos->execute([$idResidente]);
         $pagos = $this->db->prepare(
             "SELECT 'pago' AS clase, p.id_pago AS id, p.fecha, 'Pago' AS tipo,
                     CONCAT('Pago en ', LOWER(p.metodo), IF(p.observaciones IS NULL OR p.observaciones = '', '', CONCAT(': ', p.observaciones))) AS concepto,
-                    p.monto AS monto_bruto, 0 AS descuento, p.monto, NULL AS periodo, NULL AS id_visita, p.metodo, p.referencia
+                    p.monto AS monto_bruto, 0 AS descuento, p.monto, NULL AS periodo, NULL AS id_visita, p.metodo, p.referencia,
+                    p.anulado, p.motivo_anulacion
              FROM pagos_familiares p WHERE p.id_residente = ?"
         );
         $pagos->execute([$idResidente]);
@@ -72,7 +74,7 @@ class Caja {
         $saldo = 0.0; $cargado = 0.0; $pagado = 0.0; $descuentos = 0.0;
         foreach ($mov as &$m) {
             if ($m['clase'] === 'cargo') { $saldo += $m['monto']; $cargado += $m['monto']; $descuentos += $m['descuento']; }
-            else { $saldo -= $m['monto']; $pagado += $m['monto']; }
+            elseif (!(int)$m['anulado']) { $saldo -= $m['monto']; $pagado += $m['monto']; }   // un pago anulado no cuenta
             $m['saldo'] = round($saldo, 2);
         }
         unset($m);
@@ -92,7 +94,7 @@ class Caja {
     /** Residentes a los que corresponde cuota en el periodo (AAAA-MM), con su monto */
     public function residentesParaCuota(string $periodo): array {
         $stmt = $this->db->prepare(
-            "SELECT r.id_residente, r.nombre, r.apellido, p.nombre_plan, COALESCE(p.costo_base, 0) AS costo_plan,
+            "SELECT r.id_residente, r.nombre, r.apellido, r.fecha_ingreso, p.nombre_plan, COALESCE(p.costo_base, 0) AS costo_plan,
                     h.numero_habitacion, h.tipo AS tipo_habitacion, COALESCE(h.costo_adicional, 0) AS costo_habitacion,
                     (SELECT COUNT(*) FROM cargos_familiares c WHERE c.id_residente = r.id_residente AND c.tipo = 'Cuota mensual' AND c.periodo = ?) AS ya_tiene
              FROM residentes r
@@ -135,7 +137,7 @@ class Caja {
                                SUM(monto) AS total
                         FROM cargos_familiares WHERE id_visita IS NOT NULL AND tipo IN " . self::TIPOS_FUNDACION . "
                         GROUP BY id_visita) c ON c.id_visita = v.id_visita
-             LEFT JOIN (SELECT id_visita, SUM(monto) AS pagado, MAX(fecha) AS ultimo_pago FROM pagos_fundacion GROUP BY id_visita) pf ON pf.id_visita = v.id_visita
+             LEFT JOIN (SELECT id_visita, SUM(monto) AS pagado, MAX(fecha) AS ultimo_pago FROM pagos_fundacion WHERE anulado = 0 GROUP BY id_visita) pf ON pf.id_visita = v.id_visita
              ORDER BY saldo DESC, v.fecha_visita DESC"
         )->fetchAll();
         foreach ($filas as &$f) {
@@ -153,7 +155,7 @@ class Caja {
 
     public function pagosFundacion(?int $idVisita = null): array {
         $stmt = $this->db->prepare(
-            'SELECT pf.*, u.nombre AS registrado_por FROM pagos_fundacion pf LEFT JOIN usuarios u ON u.id_usuario = pf.id_usuario' .
+            'SELECT pf.*, u.nombre AS registrado_por, ua.nombre AS anulado_por_nombre FROM pagos_fundacion pf LEFT JOIN usuarios u ON u.id_usuario = pf.id_usuario LEFT JOIN usuarios ua ON ua.id_usuario = pf.anulado_por' .
             ($idVisita ? ' WHERE pf.id_visita = ?' : '') . ' ORDER BY pf.fecha DESC, pf.id_pago_fundacion DESC'
         );
         $stmt->execute($idVisita ? [$idVisita] : []);
@@ -171,7 +173,7 @@ class Caja {
 
     public function donaciones(?string $desde = null, ?string $hasta = null): array {
         [$where, $p] = $this->rango('d.fecha', $desde, $hasta);
-        $stmt = $this->db->prepare("SELECT d.*, u.nombre AS registrado_por FROM donaciones d LEFT JOIN usuarios u ON u.id_usuario = d.id_usuario $where ORDER BY d.fecha DESC, d.id_donacion DESC");
+        $stmt = $this->db->prepare("SELECT d.*, u.nombre AS registrado_por, ua.nombre AS anulado_por_nombre FROM donaciones d LEFT JOIN usuarios u ON u.id_usuario = d.id_usuario LEFT JOIN usuarios ua ON ua.id_usuario = d.anulado_por $where ORDER BY d.fecha DESC, d.id_donacion DESC");
         $stmt->execute($p);
         return $stmt->fetchAll();
     }
@@ -185,7 +187,7 @@ class Caja {
 
     public function gastos(?string $desde = null, ?string $hasta = null): array {
         [$where, $p] = $this->rango('g.fecha', $desde, $hasta);
-        $stmt = $this->db->prepare("SELECT g.*, u.nombre AS registrado_por FROM gastos g LEFT JOIN usuarios u ON u.id_usuario = g.id_usuario $where ORDER BY g.fecha DESC, g.id_gasto DESC");
+        $stmt = $this->db->prepare("SELECT g.*, u.nombre AS registrado_por, ua.nombre AS anulado_por_nombre FROM gastos g LEFT JOIN usuarios u ON u.id_usuario = g.id_usuario LEFT JOIN usuarios ua ON ua.id_usuario = g.anulado_por $where ORDER BY g.fecha DESC, g.id_gasto DESC");
         $stmt->execute($p);
         return $stmt->fetchAll();
     }
@@ -195,6 +197,29 @@ class Caja {
             'INSERT INTO gastos (categoria, descripcion, monto, fecha, comprobante, id_usuario) VALUES (?, ?, ?, ?, ?, ?)'
         )->execute([$d['categoria'], $d['descripcion'], $d['monto'], $d['fecha'], $d['comprobante'], $d['id_usuario']]);
         return (int)$this->db->lastInsertId();
+    }
+
+    /* ================= Anulación (un registro equivocado nunca se borra) ================= */
+
+    /** tipo => [tabla, llave primaria] */
+    public const ANULABLES = [
+        'pago'           => ['pagos_familiares', 'id_pago'],
+        'pago_fundacion' => ['pagos_fundacion', 'id_pago_fundacion'],
+        'donacion'       => ['donaciones', 'id_donacion'],
+        'gasto'          => ['gastos', 'id_gasto'],
+    ];
+
+    public function registroAnulable(string $tipo, int $id): ?array {
+        [$tabla, $pk] = self::ANULABLES[$tipo];
+        $stmt = $this->db->prepare("SELECT * FROM {$tabla} WHERE {$pk} = ? FOR UPDATE");
+        $stmt->execute([$id]);
+        return $stmt->fetch() ?: null;
+    }
+
+    public function anular(string $tipo, int $id, string $motivo, int $idUsuario): void {
+        [$tabla, $pk] = self::ANULABLES[$tipo];
+        $this->db->prepare("UPDATE {$tabla} SET anulado = 1, motivo_anulacion = ?, anulado_por = ?, anulado_en = NOW() WHERE {$pk} = ? AND anulado = 0")
+            ->execute([$motivo, $idUsuario, $id]);
     }
 
     /* ================= Resumen de caja ================= */
@@ -211,15 +236,15 @@ class Caja {
             $stmt->execute([$desde, $hasta]);
             return $stmt->fetchAll();
         };
-        $cobros = $suma('SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE fecha BETWEEN ? AND ?');
-        $donMon = $suma("SELECT COALESCE(SUM(monto), 0) FROM donaciones WHERE tipo_donacion = 'Monetaria' AND fecha BETWEEN ? AND ?");
-        $donEsp = $suma("SELECT COALESCE(SUM(monto), 0) FROM donaciones WHERE tipo_donacion = 'En especie' AND fecha BETWEEN ? AND ?");
-        $gastos = $suma('SELECT COALESCE(SUM(monto), 0) FROM gastos WHERE fecha BETWEEN ? AND ?');
-        $pagFund = $suma('SELECT COALESCE(SUM(monto), 0) FROM pagos_fundacion WHERE fecha BETWEEN ? AND ?');
+        $cobros = $suma('SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE anulado = 0 AND fecha BETWEEN ? AND ?');
+        $donMon = $suma("SELECT COALESCE(SUM(monto), 0) FROM donaciones WHERE anulado = 0 AND tipo_donacion = 'Monetaria' AND fecha BETWEEN ? AND ?");
+        $donEsp = $suma("SELECT COALESCE(SUM(monto), 0) FROM donaciones WHERE anulado = 0 AND tipo_donacion = 'En especie' AND fecha BETWEEN ? AND ?");
+        $gastos = $suma('SELECT COALESCE(SUM(monto), 0) FROM gastos WHERE anulado = 0 AND fecha BETWEEN ? AND ?');
+        $pagFund = $suma('SELECT COALESCE(SUM(monto), 0) FROM pagos_fundacion WHERE anulado = 0 AND fecha BETWEEN ? AND ?');
         $cargado = $suma('SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares WHERE fecha BETWEEN ? AND ?');
 
         $porCobrar = round((float)$this->db->query(
-            'SELECT (SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares) - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares)'
+            'SELECT (SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares) - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE anulado = 0)'
         )->fetchColumn(), 2);
         $deudaFund = round(array_sum(array_map(fn($f) => max(0, (float)$f['saldo']), $this->deudaFundacion())), 2);
 
@@ -234,9 +259,9 @@ class Caja {
             'deuda_fundacion' => $deudaFund,
             'donaciones_por_tipo' => $agrupar(
                 'SELECT tipo_donante, tipo_donacion, COUNT(*) AS cantidad, SUM(monto) AS total FROM donaciones
-                 WHERE fecha BETWEEN ? AND ? GROUP BY tipo_donante, tipo_donacion ORDER BY total DESC'),
+                 WHERE anulado = 0 AND fecha BETWEEN ? AND ? GROUP BY tipo_donante, tipo_donacion ORDER BY total DESC'),
             'gastos_por_categoria' => $agrupar(
-                'SELECT categoria, COUNT(*) AS cantidad, SUM(monto) AS total FROM gastos WHERE fecha BETWEEN ? AND ? GROUP BY categoria ORDER BY total DESC'),
+                'SELECT categoria, COUNT(*) AS cantidad, SUM(monto) AS total FROM gastos WHERE anulado = 0 AND fecha BETWEEN ? AND ? GROUP BY categoria ORDER BY total DESC'),
             'cargos_por_tipo' => $agrupar(
                 'SELECT tipo, COUNT(*) AS cantidad, SUM(monto) AS total, SUM(descuento) AS descuento FROM cargos_familiares
                  WHERE fecha BETWEEN ? AND ? GROUP BY tipo ORDER BY total DESC'),
@@ -245,7 +270,7 @@ class Caja {
 
     public function porCobrar(): float {
         return round((float)$this->db->query(
-            'SELECT (SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares) - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares)'
+            'SELECT (SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares) - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE anulado = 0)'
         )->fetchColumn(), 2);
     }
 

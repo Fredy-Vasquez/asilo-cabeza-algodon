@@ -8,7 +8,7 @@ require_once __DIR__ . '/../../config/database.php';
 
 class Migraciones {
     /** Súbase este número cada vez que se agregue un paso */
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     public static function aplicar(PDO $db): void {
         // v2: seguridad de cuentas (contraseña temporal, bloqueo por intentos, cierre de sesión remoto)
@@ -26,7 +26,29 @@ class Migraciones {
         if (!self::existeTabla($db, 'solicitudes_clave')) {
             $db->exec(self::TABLA_SOLICITUDES_CLAVE);
         }
+        // v3: anulación de pagos, donaciones y gastos (nunca se borran) y corrección de resultados de laboratorio
+        foreach (['pagos_familiares', 'pagos_fundacion', 'donaciones', 'gastos'] as $tabla) {
+            foreach (self::COLUMNAS_ANULACION as $col => $def) {
+                if (!self::existeColumna($db, $tabla, $col)) $db->exec("ALTER TABLE {$tabla} ADD COLUMN {$col} {$def}");
+            }
+        }
+        foreach (self::COLUMNAS_CORRECCION as $col => $def) {
+            if (!self::existeColumna($db, 'examenes_visita', $col)) $db->exec("ALTER TABLE examenes_visita ADD COLUMN {$col} {$def}");
+        }
     }
+
+    public const COLUMNAS_ANULACION = [
+        'anulado'          => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'motivo_anulacion' => 'VARCHAR(255) NULL',
+        'anulado_por'      => 'INT NULL',
+        'anulado_en'       => 'DATETIME NULL',
+    ];
+    public const COLUMNAS_CORRECCION = [
+        'resultado_original' => 'TEXT NULL',
+        'motivo_correccion'  => 'VARCHAR(255) NULL',
+        'corregido_por'      => 'INT NULL',
+        'corregido_en'       => 'DATETIME NULL',
+    ];
 
     public const TABLA_SOLICITUDES_CLAVE = "CREATE TABLE IF NOT EXISTS solicitudes_clave (
         id_solicitud_clave INT AUTO_INCREMENT PRIMARY KEY,

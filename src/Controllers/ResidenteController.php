@@ -9,6 +9,7 @@ require_once __DIR__ . '/../Models/EvaluacionMedica.php';
 require_once __DIR__ . '/../Models/FichaMedica.php';
 require_once __DIR__ . '/../Models/VisitaMedica.php';
 require_once __DIR__ . '/../Models/SolicitudMedica.php';
+require_once __DIR__ . '/FamiliarController.php';
 require_once __DIR__ . '/../Core/Bitacora.php';
 
 class ResidenteController {
@@ -43,8 +44,8 @@ class ResidenteController {
     public function guardar(array $in): array {
         $id = Http::entero($in, 'id_residente');
         $d = [
-            'nombre'           => Http::texto($in, 'nombre', true, 100, 'Nombre'),
-            'apellido'         => Http::texto($in, 'apellido', true, 100, 'Apellidos'),
+            'nombre'           => Http::nombrePersona($in, 'nombre', true, 100, 'Nombre'),
+            'apellido'         => Http::nombrePersona($in, 'apellido', true, 100, 'Apellidos'),
             'documento_id'     => Http::texto($in, 'documento_id', false, 30, 'DPI'),
             'fecha_nacimiento' => Http::fecha($in, 'fecha_nacimiento', true, 'Fecha de nacimiento'),
             'genero'           => Http::opcion($in, 'genero', Residente::GENEROS, null, 'Género'),
@@ -55,7 +56,7 @@ class ResidenteController {
             'motivo_ingreso'   => Http::texto($in, 'motivo_ingreso', true, 2000, 'Motivo de ingreso'),
             'observaciones'    => Http::texto($in, 'observaciones', false, 2000, 'Observaciones'),
         ];
-        if ($d['documento_id']) $d['documento_id'] = preg_replace('/\s+/', '', $d['documento_id']);
+        $d['documento_id'] = FamiliarController::validarDpi($d['documento_id'], $id ? ($this->model->obtener($id)['documento_id'] ?? null) : null);
 
         $edad = (new DateTime($d['fecha_nacimiento']))->diff(new DateTime())->y;
         if ($d['fecha_nacimiento'] > date('Y-m-d')) throw new HttpError('La fecha de nacimiento no puede ser futura.', 422);
@@ -135,7 +136,7 @@ class ResidenteController {
                 $citas = $q->rowCount();
                 // ¿Y si la familia todavía debe? La cuenta se conserva para seguir cobrando
                 $q = $db->prepare('SELECT (SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares WHERE id_residente = ?)
-                                        - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE id_residente = ?)');
+                                        - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares WHERE id_residente = ? AND anulado = 0)');
                 $q->execute([$id, $id]);
                 $saldo = (float)$q->fetchColumn();
             }

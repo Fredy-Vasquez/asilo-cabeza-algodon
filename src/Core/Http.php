@@ -73,6 +73,51 @@ class Http {
         return $valor;
     }
 
+    /**
+     * DPI de Guatemala (CUI): 13 dígitos. Acepta espacios o guiones al escribirlo ("2456 78123 0101")
+     * y lo guarda solo con números. Verifica el departamento y municipio de emisión y el dígito
+     * verificador, como lo hace el RENAP.
+     */
+    public static function dpi(?string $valor, string $etiqueta = 'DPI'): ?string {
+        if ($valor === null || trim($valor) === '') return null;
+        $cui = preg_replace('/[\s-]/', '', $valor);
+        if (!preg_match('/^\d+$/', $cui)) throw new HttpError("El {$etiqueta} solo puede tener números (sin letras ni símbolos).", 422);
+        if (strlen($cui) !== 13) throw new HttpError("El {$etiqueta} debe tener 13 dígitos; tiene " . strlen($cui) . '.', 422);
+        $municipios = [17, 8, 16, 16, 13, 14, 19, 8, 24, 21, 9, 30, 32, 21, 8, 17, 14, 5, 11, 11, 7, 17];
+        $depto = (int)substr($cui, 9, 2);
+        $muni = (int)substr($cui, 11, 2);
+        if ($depto < 1 || $depto > 22 || $muni < 1 || $muni > $municipios[$depto - 1]) {
+            throw new HttpError("El {$etiqueta} no es válido: los últimos 4 dígitos no corresponden a un departamento y municipio de Guatemala.", 422);
+        }
+        $suma = 0;
+        for ($i = 0; $i < 8; $i++) $suma += (int)$cui[$i] * ($i + 2);
+        if ($suma % 11 !== (int)$cui[8]) throw new HttpError("El {$etiqueta} no es válido: revise que esté bien escrito (el dígito verificador no coincide).", 422);
+        return $cui;
+    }
+
+    /** Teléfono de Guatemala: 8 dígitos (acepta 5512-3487, 5512 3487 o +502 5512 3487); se guarda como 5512-3487 */
+    public static function telefono(?string $valor, bool $requerido, string $etiqueta = 'Teléfono'): ?string {
+        if ($valor === null || trim($valor) === '') {
+            if ($requerido) throw new HttpError("El campo «{$etiqueta}» es obligatorio.", 422);
+            return null;
+        }
+        $num = preg_replace('/[\s\-()]/', '', $valor);
+        $num = preg_replace('/^(\+?502)(\d{8})$/', '$2', $num);
+        if (!preg_match('/^[2-7]\d{7}$/', $num)) {
+            throw new HttpError("El {$etiqueta} debe tener 8 dígitos (por ejemplo 5512-3487), sin letras.", 422);
+        }
+        return substr($num, 0, 4) . '-' . substr($num, 4);
+    }
+
+    /** Nombres y apellidos de personas: solo letras (con tildes y ñ), espacios, punto, apóstrofo y guion */
+    public static function nombrePersona(array $d, string $campo, bool $requerido, int $max, string $etiqueta): ?string {
+        $v = self::texto($d, $campo, $requerido, $max, $etiqueta);
+        if ($v !== null && !preg_match("/^[\p{L}][\p{L}\s.'\-]*$/u", $v)) {
+            throw new HttpError("El campo «{$etiqueta}» solo puede tener letras (sin números ni símbolos).", 422);
+        }
+        return $v;
+    }
+
     public static function ip(): string {
         return $_SERVER['REMOTE_ADDR'] ?? 'cli';
     }

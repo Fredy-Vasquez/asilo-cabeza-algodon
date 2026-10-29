@@ -522,3 +522,8 @@ html:not([data-bs-theme=dark]) .olvido-enlace button { color: #b36b00; }
 html:not([data-bs-theme=dark]) .reglas-clave li.cumple { color: #1f6a41; }
 .reglas-clave li.cumple::before { content: "\F26A"; }
 .clave-temporal { font-family: var(--fuente-titulo); font-size: 1.9rem; font-weight: 700; letter-spacing: .04em; background: var(--maiz-suave); color: var(--texto); border: 2px dashed var(--acento); border-radius: var(--radio); padding: .6rem 1rem; text-align: center; user-select: all; }
+
+/* Registros anulados: siguen visibles, tachados y sin contar en los totales */
+.fila-anulada td { color: var(--texto-3); }
+.fila-anulada .monto { text-decoration: line-through; }
+.fila-anulada .etiqueta, .fila-anulada small { text-decoration: none; }

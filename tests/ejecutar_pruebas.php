@@ -140,20 +140,21 @@ caso('CP-12', 'RF-44', 'Seguridad', 'Contraseñas almacenadas cifradas (no en te
 /* ===== Internos y alojamiento ===== */
 $idFam = null;
 caso('CP-13', 'RF-35', 'Funcional', 'Registrar familiar responsable', 'Familiar registrado', function () use ($admin, $exito, $msg, &$idFam) {
-    $r = $admin->post('familiar_guardar', ['nombre' => 'Lucía', 'apellido' => 'Prueba SQA', 'telefono' => '5555-0101', 'parentesco' => 'Hija', 'documento_id' => '9999888877701', 'email' => 'lucia.sqa@correo.com']);
+    $r = $admin->post('familiar_guardar', ['nombre' => 'Lucía', 'apellido' => 'Prueba SQA', 'telefono' => '5555-0101', 'parentesco' => 'Hija', 'documento_id' => '9999888830101', 'email' => 'lucia.sqa@correo.com']);
     $idFam = $r['json']['data']['id'] ?? null;
     return [$exito($r) && $idFam, $msg($r), $r['ms']];
 });
 caso('CP-14', 'RF-35', 'Negativa', 'Registrar familiar con DPI duplicado', 'HTTP 409, DPI ya existe', function () use ($admin, $msg) {
-    $r = $admin->post('familiar_guardar', ['nombre' => 'Otro', 'apellido' => 'Dup', 'telefono' => '5555-0102', 'parentesco' => 'Hijo', 'documento_id' => '9999888877701']);
+    $r = $admin->post('familiar_guardar', ['nombre' => 'Otro', 'apellido' => 'Dup', 'telefono' => '5555-0102', 'parentesco' => 'Hijo', 'documento_id' => '9999888830101']);
     return [$r['http'] === 409, "HTTP {$r['http']}: " . $msg($r), $r['ms']];
 });
-caso('CP-15', 'RF-35', 'Seguridad', 'Código HTML/JavaScript en un nombre (XSS almacenado)', 'Las etiquetas se eliminan antes de guardar', function () use ($admin) {
-    $r = $admin->post('familiar_guardar', ['nombre' => '<script>alert(1)</script>Mario', 'apellido' => 'XSS', 'telefono' => '5555-0103', 'parentesco' => 'Sobrino', 'documento_id' => '9999888877702']);
+caso('CP-15', 'RF-35', 'Seguridad', 'Código HTML/JavaScript en un nombre (XSS almacenado)', 'Se rechaza o se guarda sin etiquetas', function () use ($admin, $msg) {
+    $r = $admin->post('familiar_guardar', ['nombre' => '<script>alert(1)</script>Mario', 'apellido' => 'XSS', 'telefono' => '5555-0103', 'parentesco' => 'Sobrino', 'documento_id' => '9999888750101']);
     $lista = $admin->get('familiares');
     $guardado = '';
-    foreach ($lista['json']['data'] ?? [] as $f) if ($f['documento_id'] === '9999888877702') $guardado = $f['nombre'];
-    return [$guardado !== '' && !str_contains($guardado, '<script'), "Guardado como: «{$guardado}»", $r['ms']];
+    foreach ($lista['json']['data'] ?? [] as $f) if ($f['documento_id'] === '9999888750101') $guardado = $f['nombre'];
+    $rechazado = $r['http'] === 422;
+    return [$rechazado || ($guardado !== '' && !str_contains($guardado, '<script')), $rechazado ? 'Rechazado: ' . $msg($r) : "Guardado como: «{$guardado}»", $r['ms']];
 });
 $idRes = null;
 caso('CP-16', 'RF-01', 'Funcional', 'Registrar residente con familiar, habitación, plan y motivo de ingreso', 'Residente registrado y habitación actualizada', function () use ($admin, $exito, $msg, &$idFam, &$idRes) {

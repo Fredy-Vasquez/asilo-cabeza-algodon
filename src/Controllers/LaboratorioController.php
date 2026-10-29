@@ -57,6 +57,36 @@ class LaboratorioController {
         ];
     }
 
+    /**
+     * ¿Y si el laboratorio escribió mal un resultado? Se corrige con motivo: se conserva el primer
+     * resultado, se registra quién y cuándo corrigió, y el cargo al familiar no cambia.
+     */
+    public function corregirResultado(array $in): array {
+        $id = Http::entero($in, 'id_examen_visita', true);
+        $resultado = Http::texto($in, 'resultado', true, 4000, 'Resultado corregido');
+        $motivo = Http::texto($in, 'motivo', true, 255, 'Motivo de la corrección');
+        if (mb_strlen($motivo) < 10) throw new HttpError('Explique el motivo de la corrección (al menos 10 caracteres).', 422);
+
+        $db = Database::conn();
+        $db->beginTransaction();
+        try {
+            $ex = $this->model->obtener($id, true);
+            if (!$ex) throw new HttpError('El examen no existe.', 404);
+            if ($ex['estado'] !== 'Realizado') throw new HttpError('Este examen todavía no tiene resultado; use «Registrar resultado».', 409);
+            if (trim($ex['resultado']) === trim($resultado)) throw new HttpError('El resultado corregido es igual al actual.', 422);
+            $this->model->corregirResultado($id, $resultado, $motivo, Auth::id());
+            Bitacora::registrar('LAB_CORRECCION', 'examenes_visita', [
+                'id' => $id, 'examen' => $ex['examen'], 'residente' => "{$ex['residente_nombre']} {$ex['residente_apellido']}",
+                'antes' => $ex['resultado'], 'despues' => $resultado, 'motivo' => $motivo,
+            ]);
+            $db->commit();
+        } catch (Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+        return ['mensaje' => 'Resultado corregido. El resultado anterior queda guardado y el especialista ve la versión corregida.'];
+    }
+
     public function catalogo(): array {
         return $this->model->catalogo();
     }

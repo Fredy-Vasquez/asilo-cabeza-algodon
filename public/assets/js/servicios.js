@@ -51,10 +51,13 @@ async function vistaLaboratorio(c) {
             <td>${esc(x.medico)}<small class="d-block text-secondary">${esc(x.especialidad)}, ${fmtFecha(x.fecha_visita)}</small></td>
             <td class="text-end text-nowrap"><strong>${fmtQ(x.precio_neto)}</strong><small class="d-block text-secondary">de ${fmtQ(x.precio)}, desc. ${pct(x.descuento_pct)}</small></td>
             <td>${x.estado === 'Realizado'
-                ? `<div class="resultado-lab small"><i class="bi bi-check2-circle"></i> ${esc(x.resultado)}</div><small class="text-secondary">${esc(x.laboratorista || '')}, ${fmtFechaHora(x.fecha_resultado)}</small>`
+                ? `<div class="resultado-lab small"><i class="bi bi-check2-circle"></i> ${esc(x.resultado)}</div><small class="text-secondary">${esc(x.laboratorista || '')}, ${fmtFechaHora(x.fecha_resultado)}</small>
+                   ${x.corregido_en ? `<small class="d-block">${etiqueta('atencion', 'Corregido')} <span class="text-secondary">${esc(x.corregido_por_nombre || '')}, ${fmtFechaHora(x.corregido_en)}: ${esc(x.motivo_correccion)}</span></small>` : ''}
+                   <button class="btn btn-link btn-sm p-0 mt-1" data-corr="${x.id_examen_visita}"><i class="bi bi-pencil me-1"></i>Corregir resultado</button>`
                 : `<button class="btn btn-primary btn-sm text-nowrap" data-res="${x.id_examen_visita}"><i class="bi bi-pencil-square me-1"></i>Registrar resultado</button>`}</td></tr>`).join('')
             : `<tr><td colspan="5">${vacio('eyedropper', examenes.length ? 'No hay exámenes con este filtro.' : 'Los especialistas todavía no han solicitado exámenes.')}</td></tr>`;
         $$('#tbLab [data-res]').forEach(b => b.addEventListener('click', () => formResultado(examenes.find(x => x.id_examen_visita == b.dataset.res))));
+        $$('#tbLab [data-corr]').forEach(b => b.addEventListener('click', () => formCorreccion(examenes.find(x => x.id_examen_visita == b.dataset.corr))));
     };
     activarFiltros('lab', filtroLab, pintar);
     pintar();
@@ -73,9 +76,31 @@ function formResultado(x) {
             <div class="row g-3">${textoArea({ nombre: 'resultado', etiqueta: 'Resultado del examen', req: true, filas: 5, attrs: 'maxlength="4000" minlength="3"',
                 ayuda: 'Valores obtenidos, rangos de referencia y observaciones. El especialista lo verá en la ficha médica.' })}</div>
             <p class="small text-secondary mt-3 mb-0"><i class="bi bi-receipt me-1"></i>Al guardar se cargarán <strong>${fmtQ(x.precio_neto)}</strong> a la cuenta del familiar
-                (precio ${fmtQ(x.precio)} menos ${pct(x.descuento_pct)} de la fundación). El resultado no se puede modificar después.</p>`,
+                (precio ${fmtQ(x.precio)} menos ${pct(x.descuento_pct)} de la fundación). Si después hay un error, se puede corregir indicando el motivo.</p>`,
         alEnviar: async d => {
             const r = await api('laboratorio_resultado', { id_examen_visita: x.id_examen_visita, resultado: d.resultado });
+            cerrarForm(); aviso(r.mensaje); recargarVista();
+        },
+    });
+}
+
+/* ¿Y si el resultado se escribió mal? Se corrige con motivo; el primero queda guardado */
+function formCorreccion(x) {
+    abrirForm({
+        titulo: 'Corregir resultado',
+        boton: 'Guardar corrección',
+        cuerpo: `<div class="resumen-form mb-3">
+                <div><span>Residente</span><strong>${esc(x.residente_nombre)} ${esc(x.residente_apellido)}</strong></div>
+                <div><span>Examen</span><strong>${esc(x.examen)}</strong></div>
+                <div class="col-span-2" style="grid-column:1/-1"><span>Resultado actual</span><strong class="pre">${esc(x.resultado)}</strong></div>
+            </div>
+            <div class="row g-3">
+                ${textoArea({ nombre: 'resultado', etiqueta: 'Resultado corregido', valor: x.resultado, req: true, filas: 5, attrs: 'maxlength="4000" minlength="3"' })}
+                ${textoArea({ nombre: 'motivo', etiqueta: 'Motivo de la corrección', req: true, filas: 2, attrs: 'maxlength="255" minlength="10" placeholder="Ej.: se anotó 210 mg/dL y el valor correcto es 120 mg/dL"' })}
+            </div>
+            <p class="small text-secondary mt-3 mb-0"><i class="bi bi-shield-check me-1"></i>El resultado anterior queda guardado y la corrección se registra en la bitácora con su nombre. El cargo al familiar no cambia.</p>`,
+        alEnviar: async d => {
+            const r = await api('laboratorio_corregir', { id_examen_visita: x.id_examen_visita, resultado: d.resultado, motivo: d.motivo });
             cerrarForm(); aviso(r.mensaje); recargarVista();
         },
     });

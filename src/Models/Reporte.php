@@ -90,6 +90,7 @@ class Reporte {
 
     public function pagosFamiliares(?int $idRes, ?string $desde, ?string $hasta): array {
         [$w, $p] = $this->filtros($idRes, $desde, $hasta, 'pf.id_residente', 'pf.fecha');
+        $w[] = 'pf.anulado = 0';
         return $this->todos(
             "SELECT pf.id_pago, pf.id_residente, r.nombre, r.apellido, CONCAT(f.nombre, ' ', f.apellido) AS familiar,
                     pf.fecha, pf.monto, pf.metodo, pf.referencia, pf.observaciones
@@ -106,7 +107,7 @@ class Reporte {
         $p = [$h, $h];
         $sql = "SELECT r.id_residente, r.nombre, r.apellido,
                        (SELECT COALESCE(SUM(monto), 0) FROM cargos_familiares c WHERE c.id_residente = r.id_residente AND c.fecha <= ?)
-                     - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares pf WHERE pf.id_residente = r.id_residente AND pf.fecha <= ?) AS saldo
+                     - (SELECT COALESCE(SUM(monto), 0) FROM pagos_familiares pf WHERE pf.id_residente = r.id_residente AND pf.anulado = 0 AND pf.fecha <= ?) AS saldo
                 FROM residentes r";
         if ($idRes) { $sql .= ' WHERE r.id_residente = ?'; $p[] = $idRes; }
         $out = [];
@@ -117,6 +118,7 @@ class Reporte {
     /* ---------- 4. Pagos a la fundación ---------- */
     public function pagosFundacion(?int $idRes, ?string $desde, ?string $hasta): array {
         [$w, $p] = $this->filtros($idRes, $desde, $hasta, 'v.id_residente', 'pf.fecha');
+        $w[] = 'pf.anulado = 0';
         return $this->todos(
             "SELECT pf.id_pago_fundacion, pf.fecha, pf.monto, pf.metodo, pf.referencia, pf.id_visita,
                     v.fecha_visita, r.nombre, r.apellido, e.nombre AS especialidad, u.nombre AS medico
@@ -134,6 +136,7 @@ class Reporte {
     /* ---------- 5. Entradas: donaciones y cobros ---------- */
     public function donaciones(?string $desde, ?string $hasta): array {
         [$w, $p] = $this->filtros(null, $desde, $hasta, '', 'd.fecha');
+        $w[] = 'd.anulado = 0';
         return $this->todos(
             'SELECT d.id_donacion, d.fecha, d.tipo_donante, d.donante, d.tipo_donacion, d.monto, d.descripcion, d.comprobante FROM donaciones d' .
             ($w ? ' WHERE ' . implode(' AND ', $w) : '') . ' ORDER BY d.fecha, d.id_donacion',
