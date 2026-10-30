@@ -133,6 +133,23 @@ caso('CL-26', 'Corregir con motivo', 'Resultado nuevo, el original guardado y qu
 _, cuentas1 = conta.get('cuentas')
 caso('CL-27', 'La corrección no cambia lo cobrado al familiar', 'Mismo total por cobrar', cuentas0['data']['por_cobrar'] == cuentas1['data']['por_cobrar'], cuentas1['data']['por_cobrar'])
 
+# ---------- ¿Y si se desactiva a un especialista o enfermero con citas por atender? ----------
+_, us = admin.get('usuarios')
+U = {x['email']: x for x in us['data']['usuarios']}
+def datos(u, **k):
+    return {**{c: u[c] for c in ('id_usuario', 'nombre', 'email', 'id_rol', 'telefono', 'id_especialidad', 'estado')}, **k}
+st, j = admin.post('usuario_guardar', datos(U['psiquiatra@asilo.com'], estado='inactivo'))
+caso('CL-28', 'Desactivar al especialista que tiene una cita programada', 'Rechazado (409) pidiendo reprogramar', st == 409 and 'reprograme' in msg(j), msg(j))
+st, j = admin.post('usuario_guardar', datos(U['enfermera@asilo.com'], id_rol=7))
+caso('CL-29', 'Cambiar de rol a la enfermera que tiene un acompañamiento', 'Rechazado (409)', st == 409, msg(j))
+st, j = admin.post('usuario_guardar', datos(U['geriatra@asilo.com'], estado='inactivo'))
+st2, _ = admin.post('usuario_guardar', datos(U['geriatra@asilo.com'], estado='activo'))
+caso('CL-30', 'Desactivar a un especialista sin citas pendientes', 'Aceptado', st == 200 and st2 == 200, msg(j))
+st, j = admin.post('usuario_guardar', datos(U['psiquiatra@asilo.com'], telefono='5500-9999'))
+caso('CL-31', 'Editar solo el teléfono del especialista con citas', 'Aceptado (no afecta sus citas)', st == 200, msg(j))
+st, j = admin.get('sesion_ping')
+caso('CL-32', '«Seguir conectado» renueva la sesión', 'Responde 200', st == 200 and j['data']['ok'] is True, st)
+
 aprobados = sum(1 for r in resultados if r['resultado'] == 'Aprobado')
 print(f'\nResultado: {aprobados}/{len(resultados)} casos aprobados')
 with open('tests/resultados_casos_limite.json', 'w', encoding='utf-8') as fh:

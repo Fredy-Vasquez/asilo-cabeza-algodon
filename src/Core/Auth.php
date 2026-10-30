@@ -7,7 +7,7 @@ require_once __DIR__ . '/Http.php';
 require_once __DIR__ . '/Migraciones.php';
 
 class Auth {
-    private const INACTIVIDAD_MAX = 60 * 60 * 2; // 2 horas
+    public const INACTIVIDAD_MAX = 60 * 60 * 2; // 2 horas
     public const INTENTOS_MAX = 5;               // intentos fallidos seguidos antes de bloquear
     public const MINUTOS_BLOQUEO = 15;
 

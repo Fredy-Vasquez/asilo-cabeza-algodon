@@ -72,6 +72,11 @@ class CuentaController {
         return ['mensaje' => 'Contraseña actualizada. Si tenía el sistema abierto en otro equipo, allí se cerró la sesión.'];
     }
 
+    /** "Seguir conectado": cualquier petición renueva la sesión (Auth::iniciarSesion) */
+    public function ping(): array {
+        return ['ok' => true];
+    }
+
     public static function segura(string $p): bool {
         return strlen($p) >= 8 && preg_match('/[A-Za-z]/', $p) && preg_match('/\d/', $p);
     }

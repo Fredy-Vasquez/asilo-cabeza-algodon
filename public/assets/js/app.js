@@ -27,10 +27,25 @@ async function api(accion, datos = null, extra = '') {
         throw new Error('No hay conexión con el servidor. Verifique que Apache esté encendido.');
     }
     if (r.status === 401) { location.href = 'login.php?expirada=1'; throw new Error('Sesión expirada'); }
+    vigilarSesion();
     let j;
     try { j = await r.json(); } catch (_) { throw new Error('El servidor devolvió una respuesta inesperada. Revise el registro de errores de PHP.'); }
     if (j.status !== 'success') throw new Error(j.message || 'Ocurrió un error.');
     return j.data;
+}
+
+/* ¿Y si el usuario deja un formulario a medias y se va? La sesión vence a las 2 horas sin actividad.
+   5 minutos antes se le avisa para que pueda seguir conectado y no pierda lo escrito. */
+let avisoSesion, finSesion;
+function vigilarSesion() {
+    clearTimeout(avisoSesion); clearTimeout(finSesion);
+    const max = (window.SESION_MAX || 7200) * 1000;
+    avisoSesion = setTimeout(async () => {
+        if (await confirmar('Su sesión está por cerrarse', 'Por seguridad, la sesión se cierra tras 2 horas sin actividad. Si está llenando un formulario, presione «Seguir conectado» para no perder lo escrito.', 'Seguir conectado', 'primary')) {
+            try { await api('sesion_ping'); aviso('Sesión renovada.'); } catch (_) { /* api ya redirige si venció */ }
+        }
+    }, max - 5 * 60 * 1000);
+    finSesion = setTimeout(() => { location.href = 'login.php?expirada=1'; }, max + 5000);
 }
 
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1110,6 +1125,7 @@ function detalleBitacora(d) {
    Se espera a DOMContentLoaded para que los módulos (atencion.js, …) ya estén cargados. */
 document.addEventListener('DOMContentLoaded', () => {
     construirMenu();
+    vigilarSesion();
     window.addEventListener('hashchange', () => {
         // Al cambiar de pantalla se cierran el expediente y los formularios que quedaron abiertos
         bootstrap.Offcanvas.getInstance('#panelExpediente')?.hide();

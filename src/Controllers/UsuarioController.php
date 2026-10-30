@@ -63,6 +63,18 @@ class UsuarioController {
             $cambiaAcceso = $antes['estado'] !== $d['estado'] || (int)$antes['id_rol'] !== $d['id_rol']
                 || (int)$antes['id_especialidad'] !== (int)$d['id_especialidad'] || $antes['email'] !== $d['email'];
             $propio = $id === Auth::id();
+            // ¿Y si se desactiva o se le cambia el rol a alguien con citas por atender? Se pide reasignarlas primero
+            $dejaRol = $antes['estado'] === 'activo' && ($d['estado'] !== 'activo' || (int)$antes['id_rol'] !== $d['id_rol']
+                || ((int)$antes['id_rol'] === ROL_ESPECIALISTA && (int)$antes['id_especialidad'] !== (int)$d['id_especialidad']));
+            if ($dejaRol) {
+                $c = $this->model->citasPendientes($id);
+                if ($c['como_medico'] || $c['como_enfermero']) {
+                    $partes = [];
+                    if ($c['como_medico']) $partes[] = "{$c['como_medico']} cita(s) programada(s) como especialista";
+                    if ($c['como_enfermero']) $partes[] = "{$c['como_enfermero']} acompañamiento(s) como enfermero(a)";
+                    throw new HttpError("{$antes['nombre']} tiene " . implode(' y ', $partes) . ' sin atender. Pida a la fundación que las reprograme con otra persona (Solicitudes > Programar) y luego vuelva a intentarlo.', 409);
+                }
+            }
             $this->model->actualizar($id, $d, $cambiaAcceso && !$propio);
             $mensaje = 'Usuario actualizado.';
             if ($d['password'] !== '') {

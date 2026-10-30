@@ -92,6 +92,21 @@ class Usuario {
         return (int)$stmt->fetchColumn();
     }
 
+    /** Citas que aún no se atienden donde el usuario es el especialista asignado o el enfermero acompañante */
+    public function citasPendientes(int $id): array {
+        $stmt = $this->db->prepare(
+            "SELECT
+                SUM(s.id_medico_asignado = :a AND s.estado = 'Programada') AS como_medico,
+                SUM(s.id_enfermero = :b) AS como_enfermero
+             FROM solicitudes_medicas s
+             WHERE s.estado IN ('Pendiente', 'Programada') AND (s.id_medico_asignado = :c OR s.id_enfermero = :d)
+               AND NOT EXISTS (SELECT 1 FROM visitas_medicas v WHERE v.id_solicitud = s.id_solicitud)"
+        );
+        $stmt->execute([':a' => $id, ':b' => $id, ':c' => $id, ':d' => $id]);
+        $f = $stmt->fetch() ?: [];
+        return ['como_medico' => (int)($f['como_medico'] ?? 0), 'como_enfermero' => (int)($f['como_enfermero'] ?? 0)];
+    }
+
     /* ---------- Solicitudes de "¿Olvidó su contraseña?" ---------- */
 
     public function solicitudClavePendiente(int $idUsuario): bool {

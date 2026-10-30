@@ -112,6 +112,7 @@ $iniciales = implode('', array_map(fn($p) => mb_substr($p, 0, 1), array_slice(pr
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="avisos" aria-live="polite"></div>
 
 <script>
+window.SESION_MAX = <?= Auth::INACTIVIDAD_MAX ?>;
 window.USUARIO = <?= json_encode(['id' => $u['id'], 'id_rol' => $u['id_rol'], 'nombre' => $u['nombre'], 'rol' => $u['rol']], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
 </script>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>

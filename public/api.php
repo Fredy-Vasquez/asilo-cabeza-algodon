@@ -21,6 +21,7 @@ const A = ROL_ADMIN, M = ROL_MEDICO, C = ROL_CONTADOR, E = ROL_ENFERMERO,
 // acción => [Controlador, método, roles permitidos ([] = cualquiera con sesión), modifica datos]
 $rutas = [
     'dashboard'               => ['DashboardController', 'resumen', [], false],
+    'sesion_ping'             => ['CuentaController', 'ping', [], false],
 
     // Internos y alojamiento
     'residentes'              => ['ResidenteController', 'listar', [], false],
