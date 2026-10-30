@@ -41,7 +41,7 @@ class ConfiguracionController {
         $para = Http::texto($in, 'para', true, 100, 'Correo de prueba');
         if (!filter_var($para, FILTER_VALIDATE_EMAIL)) throw new HttpError('Escriba un correo válido.', 422);
         $r = Correo::enviar($para, 'Prueba de correo del sistema',
-            '<p>Si está leyendo esto, el sistema del asilo ya puede enviar correos a los familiares.</p><p>Enviado el ' . date('d/m/Y \a \l\a\s H:i') . '.</p>');
+            '<p>Si está leyendo esto, el sistema del asilo ya puede enviar correos a los familiares.</p><p>Enviado el ' . date('d/m/Y \a \l\a\s H:i') . '.</p>' . Correo::botonIngreso());
         Bitacora::registrar('CORREO_PRUEBA', 'notificaciones_correo', ['para' => $para, 'estado' => $r['estado']]);
         if ($r['estado'] !== 'Enviado') throw new HttpError('No se pudo enviar: ' . $r['detalle'], 502);
         return ['mensaje' => "Correo de prueba enviado a {$para}. Revise la bandeja de entrada (y la carpeta de spam)."];

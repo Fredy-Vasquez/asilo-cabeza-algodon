@@ -118,7 +118,29 @@ class Http {
         return $v;
     }
 
+    /**
+     * IP del usuario. En Azure todas las peticiones llegan a través del proxy HTTPS (Caddy),
+     * así que REMOTE_ADDR es la IP interna de Docker; la IP real viene en X-Forwarded-For.
+     * Solo se confía en ese encabezado cuando quien conecta es una dirección interna (el proxy).
+     */
     public static function ip(): string {
-        return $_SERVER['REMOTE_ADDR'] ?? 'cli';
+        $remota = $_SERVER['REMOTE_ADDR'] ?? 'cli';
+        $reenviada = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+        if ($reenviada !== '' && filter_var($remota, FILTER_VALIDATE_IP)
+            && !filter_var($remota, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            $partes = array_map('trim', explode(',', $reenviada));
+            $real = end($partes);   // la última la agrega nuestro propio proxy
+            if (filter_var($real, FILTER_VALIDATE_IP)) return $real;
+        }
+        return $remota;
+    }
+
+    /** Dirección de la pantalla de ingreso (sirve igual en XAMPP y en Azure) */
+    public static function urlSistema(): string {
+        $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        if (!preg_match('/^[A-Za-z0-9.\-]+(:\d+)?$/', $host)) $host = 'localhost';
+        $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
+        return ($https ? 'https' : 'http') . '://' . $host . $dir . '/login.php';
     }
 }

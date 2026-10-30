@@ -14,6 +14,8 @@ class Auth {
     public static function iniciarSesion(): void {
         if (session_status() === PHP_SESSION_ACTIVE) return;
         session_name('ASILO_SESION');
+        // PHP borra por defecto las sesiones con 24 min sin uso; el sistema permite 2 horas
+        ini_set('session.gc_maxlifetime', (string)(self::INACTIVIDAD_MAX + 600));
         session_set_cookie_params([
             'lifetime' => 0,
             'path'     => '/',

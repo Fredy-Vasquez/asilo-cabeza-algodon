@@ -27,6 +27,8 @@ class Database {
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES   => false,
                 ]);
+                // NOW() y CURDATE() con la hora de Guatemala aunque el servidor esté en UTC (Azure)
+                $this->conn->exec("SET time_zone = '-06:00'");
             } catch (PDOException $e) {
                 throw new RuntimeException('No se pudo conectar a la base de datos. Verifique que MySQL esté encendido en XAMPP y que exista la base asilo_cabeza_algodon (importe database/schema.sql).');
             }

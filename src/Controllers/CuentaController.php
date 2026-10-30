@@ -36,7 +36,7 @@ class CuentaController {
         if ($model->solicitudClavePendiente((int)$u['id_usuario'])) {
             return ['mensaje' => self::RESPUESTA_OLVIDO];
         }
-        $id = $model->crearSolicitudClave((int)$u['id_usuario'], $_SERVER['REMOTE_ADDR'] ?? null);
+        $id = $model->crearSolicitudClave((int)$u['id_usuario'], Http::ip());
         Bitacora::registrar('SOLICITUD_CLAVE', 'solicitudes_clave', ['id' => $id, 'usuario' => $u['email']], (int)$u['id_usuario']);
 
         // Aviso por correo a cada administrador activo (si el correo está configurado)
@@ -45,7 +45,7 @@ class CuentaController {
             Correo::enviar($admin['email'], 'Solicitud de contraseña: ' . $u['nombre'],
                 "<p>{$e($u['nombre'])} (<strong>{$e($u['email'])}</strong>, {$e($u['nombre_rol'])}) indicó en la pantalla de ingreso que olvidó su contraseña.</p>
                  <p>Para atenderla, ingrese al sistema y vaya a <strong>Administración &gt; Usuarios</strong>. Allí puede generar una contraseña temporal; al usarla, el sistema le pedirá crear una nueva.</p>
-                 <p>Si usted no reconoce esta solicitud, puede descartarla desde la misma pantalla.</p>");
+                 <p>Si usted no reconoce esta solicitud, puede descartarla desde la misma pantalla.</p>" . Correo::botonIngreso());
         }
         return ['mensaje' => self::RESPUESTA_OLVIDO];
     }

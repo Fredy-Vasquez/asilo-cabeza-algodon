@@ -4,6 +4,7 @@
 // Cada intento queda registrado en la tabla notificaciones_correo, se haya enviado o no.
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../Core/Http.php';
 require_once __DIR__ . '/../Lib/PHPMailer/Exception.php';
 require_once __DIR__ . '/../Lib/PHPMailer/PHPMailer.php';
 require_once __DIR__ . '/../Lib/PHPMailer/SMTP.php';
@@ -213,6 +214,13 @@ class Correo {
             error_log('Correo (registro): ' . $e->getMessage());
         }
         return ['estado' => $estado, 'detalle' => $detalle];
+    }
+
+    /** Botón "Ingresar al sistema" para los correos dirigidos al personal (no a los familiares) */
+    public static function botonIngreso(): string {
+        $url = htmlspecialchars(Http::urlSistema(), ENT_QUOTES, 'UTF-8');
+        return "<p style=\"margin:22px 0 6px\"><a href=\"{$url}\" style=\"background:#FCA311;color:#14213D;text-decoration:none;font-weight:bold;padding:11px 20px;border-radius:8px;display:inline-block\">Ingresar al sistema</a></p>"
+            . "<p style=\"font-size:12px;color:#5d6d67;margin:0\">{$url}</p>";
     }
 
     /** Diseño del correo: sencillo, legible en el celular y con la marca del asilo */

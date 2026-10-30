@@ -67,7 +67,7 @@ El sistema completo corre en una máquina virtual Ubuntu de Azure con Docker (`d
 3. Abra `https://asilo-cabeza-algodon.canadacentral.cloudapp.azure.com/`. El certificado lo obtiene y renueva Caddy automáticamente; lo que entre por `http://` o por la IP se redirige a `https://`. Para otro dominio, cambie `DOMINIO=` en el `.env` del servidor y vuelva a ejecutar el script.
 
 Para actualizar después de un `git push`, ejecute el mismo comando. Otros scripts en `deploy/azure/`:
-`correo.sh` (configura el correo al familiar) y `reiniciar-datos.sh` (vuelve a los datos de ejemplo).
+`correo.sh` (configura el correo al familiar), `reiniciar-datos.sh` (vuelve a los datos de ejemplo; antes guarda un respaldo y conserva el certificado HTTPS) y `respaldo.sh` (respaldo de la base de datos en `/opt/asilo-respaldos`; `instalar.sh` lo programa todos los días a las 23:30 y se restaura con `respaldo.sh restaurar <archivo>`).
 
 ## Pruebas automatizadas
 

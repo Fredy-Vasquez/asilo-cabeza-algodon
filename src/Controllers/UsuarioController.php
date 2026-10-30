@@ -113,7 +113,7 @@ class UsuarioController {
                  <p>El administrador restableció su acceso. Su contraseña temporal es:</p>
                  <p style=\"font-size:22px;font-weight:bold;letter-spacing:1px;background:#fff2da;padding:10px 14px;border-radius:8px;display:inline-block\">{$e($clave)}</p>
                  <p>Ingrese con su correo (<strong>{$e($u['email'])}</strong>) y esta contraseña. El sistema le pedirá crear una nueva antes de continuar.</p>
-                 <p>Si usted no pidió este cambio, avise a la administración.</p>");
+                 <p>Si usted no pidió este cambio, avise a la administración.</p>" . Correo::botonIngreso());
         }
         Bitacora::registrar('RESTABLECE_CLAVE', 'usuarios', ['id' => $id, 'email' => $u['email'], 'correo' => $correo['estado'] ?? 'no enviado']);
         return [

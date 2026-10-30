@@ -65,6 +65,11 @@ paso "5/6 Construyendo y levantando los contenedores (la primera vez tarda 5-10 
 $COMPOSE up -d --build --remove-orphans
 docker image prune -f >/dev/null 2>&1 || true
 
+# Respaldo automático diario de la base de datos (23:30 hora de Guatemala = 05:30 UTC)
+chmod +x deploy/azure/*.sh
+echo "30 5 * * * root bash $DIR/deploy/azure/respaldo.sh >> /var/log/asilo-respaldo.log 2>&1" > /etc/cron.d/asilo-respaldo
+chmod 644 /etc/cron.d/asilo-respaldo
+
 paso "6/6 Verificación (la primera vez Caddy tarda ~1 minuto en obtener el certificado)"
 for i in $(seq 1 30); do
     if curl -fs -o /dev/null http://localhost/login.php; then break; fi
