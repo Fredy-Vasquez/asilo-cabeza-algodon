@@ -9,6 +9,10 @@ if (Auth::vigente()) {
 }
 $expirada = isset($_GET['expirada']);
 $cerrada = isset($_GET['cerrada']);
+// Las cuentas de demostración solo se muestran en la instalación local (XAMPP).
+// En el servidor público (Azure) no aparecen: el acceso se entrega por separado.
+$host = strtolower(preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST'] ?? ''));
+$mostrarDemo = in_array($host, ['localhost', '127.0.0.1', '[::1]'], true);
 ?>
 <!DOCTYPE html>
 <html lang="es" data-bs-theme="dark">
@@ -66,6 +70,7 @@ $cerrada = isset($_GET['cerrada']);
             <p class="olvido-enlace"><button type="button" id="abrirOlvido">¿Olvidó su contraseña?</button></p>
             <button type="submit" class="btn-ingresar" id="btnIngresar">Ingresar</button>
 
+            <?php if ($mostrarDemo): ?>
             <details class="login-demo">
                 <summary>Cuentas de demostración</summary>
                 <p>Contraseña para todas: <strong>Asilo2026!</strong></p>
@@ -85,6 +90,7 @@ $cerrada = isset($_GET['cerrada']);
                     <li><button type="button" data-demo="contador@asilo.com">contador@asilo.com</button> Contador (caja)</li>
                 </ul>
             </details>
+            <?php endif; ?>
         </form>
 
         <form id="formOlvido" class="vidrio d-none" novalidate>
@@ -111,11 +117,13 @@ document.getElementById('verPassword').addEventListener('click', e => {
     p.type = ver ? 'text' : 'password';
     e.currentTarget.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña'); e.currentTarget.innerHTML = ver ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
 });
+<?php if ($mostrarDemo): ?>
 document.querySelectorAll('[data-demo]').forEach(b => b.addEventListener('click', () => {
     document.getElementById('email').value = b.dataset.demo;
     document.getElementById('password').value = 'Asilo2026!';
     document.getElementById('password').focus();
 }));
+<?php endif; ?>
 const formOlvido = document.getElementById('formOlvido');
 const csrf = () => document.querySelector('meta[name=csrf-token]').content;
 document.getElementById('abrirOlvido').addEventListener('click', () => {
