@@ -106,7 +106,32 @@ class ResidenteController {
             $db->rollBack();
             throw $e;
         }
+        // Aviso al familiar responsable: al ingresar el residente o al quedar a cargo de otro familiar
+        if (!$anterior || (int)$anterior['id_familiar'] !== $d['id_familiar']) {
+            $fam = (new Familiar())->obtener($d['id_familiar']);
+            if ($fam && $fam['email']) {
+                $mensaje .= FamiliarController::avisoCorreo($this->avisarIngreso($fam, $d, $hab, (bool)$anterior));
+            }
+        }
         return ['id' => $id, 'mensaje' => $mensaje];
+    }
+
+    private function avisarIngreso(array $fam, array $d, array $hab, bool $cambioResponsable): array {
+        $e = fn($t) => htmlspecialchars((string)$t, ENT_QUOTES, 'UTF-8');
+        $nombre = "{$d['nombre']} {$d['apellido']}";
+        $intro = $cambioResponsable
+            ? "Le informamos que desde hoy usted es el familiar responsable de <strong>{$e($nombre)}</strong> en el asilo."
+            : "Le confirmamos el ingreso de <strong>{$e($nombre)}</strong> al asilo. Usted quedó registrado(a) como su familiar responsable.";
+        return Correo::enviar($fam['email'], ($cambioResponsable ? 'Ahora es familiar responsable de ' : 'Confirmación de ingreso: ') . $nombre,
+            "<p>Hola, {$e($fam['nombre'])}:</p>
+             <p>{$intro}</p>
+             <table style=\"border-collapse:collapse;margin:8px 0\">
+               <tr><td style=\"padding:3px 12px 3px 0;color:#5d6d67\">Residente</td><td><strong>{$e($nombre)}</strong></td></tr>
+               <tr><td style=\"padding:3px 12px 3px 0;color:#5d6d67\">Fecha de ingreso</td><td>{$e(date('d/m/Y', strtotime($d['fecha_ingreso'])))}</td></tr>
+               <tr><td style=\"padding:3px 12px 3px 0;color:#5d6d67\">Habitación</td><td>{$e($hab['numero_habitacion'])}</td></tr>
+             </table>
+             <p>Como familiar responsable recibirá en este correo los avisos de citas con especialistas, y en caja se le cargarán la cuota mensual y los servicios.</p>
+             <p>Para cualquier consulta, comuníquese con la administración del asilo.</p>");
     }
 
     /** Alta (inactivo) libera la cama; hospitalizado la conserva */

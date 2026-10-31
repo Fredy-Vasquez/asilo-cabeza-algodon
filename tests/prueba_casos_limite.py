@@ -35,10 +35,16 @@ st, j = admin.post('familiar_guardar', fam(documento_id='12345ABC67890'))
 caso('CL-01', 'DPI con letras', 'Rechazado (422)', st == 422, msg(j))
 st, j = admin.post('familiar_guardar', fam(documento_id='999988883010'))
 caso('CL-02', 'DPI con 12 dígitos', 'Rechazado (422)', st == 422, msg(j))
-st, j = admin.post('familiar_guardar', fam(documento_id='9999888810101'))
-caso('CL-03', 'DPI con dígito verificador incorrecto', 'Rechazado (422)', st == 422, msg(j))
-st, j = admin.post('familiar_guardar', fam(documento_id='9999888832399'))
-caso('CL-04', 'DPI con departamento inexistente (23)', 'Rechazado (422)', st == 422, msg(j))
+# La verificación completa del CUI (departamento, municipio y dígito verificador) está desactivada
+# temporalmente (Http::VALIDAR_CUI = false): por ahora solo se exigen 13 dígitos numéricos.
+VALIDAR_CUI = False
+esperado = (422, 'Rechazado (422)') if VALIDAR_CUI else (200, 'Aceptado: solo se exigen 13 dígitos')
+st, j = admin.post('familiar_guardar', fam(documento_id='9999888810101', apellido='Prueba Verificador'))
+caso('CL-03', 'DPI de 13 dígitos con dígito verificador que no coincide', esperado[1], st == esperado[0], msg(j))
+st, j = admin.post('familiar_guardar', fam(documento_id='9999888832399', apellido='Prueba Departamento'))
+caso('CL-04', 'DPI de 13 dígitos con departamento inexistente (23)', esperado[1], st == esperado[0], msg(j))
+st, j = admin.post('familiar_guardar', fam(documento_id='99998888301012'))
+caso('CL-04b', 'DPI con 14 dígitos', 'Rechazado (422)', st == 422, msg(j))
 st, j = admin.post('familiar_guardar', fam(telefono='55AB-3487'))
 caso('CL-05', 'Teléfono con letras', 'Rechazado (422)', st == 422, msg(j))
 st, j = admin.post('familiar_guardar', fam(telefono='551-3487'))
@@ -149,6 +155,19 @@ st, j = admin.post('usuario_guardar', datos(U['psiquiatra@asilo.com'], telefono=
 caso('CL-31', 'Editar solo el teléfono del especialista con citas', 'Aceptado (no afecta sus citas)', st == 200, msg(j))
 st, j = admin.get('sesion_ping')
 caso('CL-32', '«Seguir conectado» renueva la sesión', 'Responde 200', st == 200 and j['data']['ok'] is True, st)
+
+# ---------- ¿Y el familiar se entera de que lo registraron? ----------
+st, j = admin.post('familiar_guardar', fam(documento_id='9999777710101', apellido='Prueba Correo', email='rosa.prueba@correo.com'))
+idc = j.get('data', {}).get('id')
+_, cfg = admin.get('configuracion')
+asuntos = [(c['destinatario'], c['asunto']) for c in cfg['data']['correos']]
+caso('CL-33', 'Registrar un familiar con correo le manda la confirmación', 'Correo "Registro como familiar responsable" registrado',
+     st == 200 and ('rosa.prueba@correo.com', 'Registro como familiar responsable') in asuntos, asuntos[:1])
+st, j = admin.post('residente_guardar', {'nombre': 'Pedro', 'apellido': 'Correo Límite', 'fecha_nacimiento': '1944-05-02', 'genero': 'M', 'id_familiar': idc,
+                                         'id_habitacion': 3, 'id_plan': 1, 'motivo_ingreso': 'Prueba del aviso de ingreso'})
+_, cfg = admin.get('configuracion')
+caso('CL-34', 'Registrar un residente avisa a su familiar responsable', 'Correo "Confirmación de ingreso" al familiar',
+     st == 200 and any(c['destinatario'] == 'rosa.prueba@correo.com' and c['asunto'].startswith('Confirmación de ingreso') for c in cfg['data']['correos']), msg(j))
 
 aprobados = sum(1 for r in resultados if r['resultado'] == 'Aprobado')
 print(f'\nResultado: {aprobados}/{len(resultados)} casos aprobados')

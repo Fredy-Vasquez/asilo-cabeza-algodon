@@ -78,11 +78,18 @@ class Http {
      * y lo guarda solo con números. Verifica el departamento y municipio de emisión y el dígito
      * verificador, como lo hace el RENAP.
      */
+    /**
+     * true = además de los 13 dígitos, verifica departamento, municipio y dígito verificador del CUI.
+     * Desactivado temporalmente a pedido del usuario: por ahora solo se exigen 13 dígitos numéricos.
+     */
+    public const VALIDAR_CUI = false;
+
     public static function dpi(?string $valor, string $etiqueta = 'DPI'): ?string {
         if ($valor === null || trim($valor) === '') return null;
         $cui = preg_replace('/[\s-]/', '', $valor);
         if (!preg_match('/^\d+$/', $cui)) throw new HttpError("El {$etiqueta} solo puede tener números (sin letras ni símbolos).", 422);
         if (strlen($cui) !== 13) throw new HttpError("El {$etiqueta} debe tener 13 dígitos; tiene " . strlen($cui) . '.', 422);
+        if (!self::VALIDAR_CUI) return $cui;
         $municipios = [17, 8, 16, 16, 13, 14, 19, 8, 24, 21, 9, 30, 32, 21, 8, 17, 14, 5, 11, 11, 7, 17];
         $depto = (int)substr($cui, 9, 2);
         $muni = (int)substr($cui, 11, 2);

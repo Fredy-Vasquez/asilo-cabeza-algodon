@@ -3,6 +3,7 @@
 
 require_once __DIR__ . '/../Models/Familiar.php';
 require_once __DIR__ . '/../Core/Bitacora.php';
+require_once __DIR__ . '/../Services/Correo.php';
 
 class FamiliarController {
     private Familiar $model;
@@ -35,14 +36,44 @@ class FamiliarController {
         }
 
         if ($id) {
-            if (!$this->model->obtener($id)) throw new HttpError('El familiar no existe.', 404);
+            $antes = $this->model->obtener($id);
+            if (!$antes) throw new HttpError('El familiar no existe.', 404);
             $this->model->actualizar($id, $d);
             Bitacora::registrar('ACTUALIZA_FAMILIAR', 'familiares', ['id' => $id] + $d);
-            return ['id' => $id, 'mensaje' => 'Familiar actualizado.'];
+            $mensaje = 'Familiar actualizado.';
+            // Si se registró o cambió su correo, se le confirma en la nueva dirección
+            if ($d['email'] !== null && mb_strtolower((string)$antes['email']) !== mb_strtolower($d['email'])) {
+                $mensaje .= self::avisoCorreo(self::correoBienvenida($id, $d, true));
+            }
+            return ['id' => $id, 'mensaje' => $mensaje];
         }
         $id = $this->model->crear($d);
         Bitacora::registrar('REGISTRO_FAMILIAR', 'familiares', ['id' => $id] + $d);
-        return ['id' => $id, 'mensaje' => 'Familiar registrado.'];
+        $mensaje = 'Familiar registrado.';
+        if ($d['email'] !== null) $mensaje .= self::avisoCorreo(self::correoBienvenida($id, $d, false));
+        return ['id' => $id, 'mensaje' => $mensaje];
+    }
+
+    /** Confirmación al familiar de que quedó registrado (o de que su correo se actualizó) */
+    private static function correoBienvenida(int $id, array $d, bool $cambioCorreo): array {
+        $e = fn($t) => htmlspecialchars((string)$t, ENT_QUOTES, 'UTF-8');
+        $intro = $cambioCorreo
+            ? 'Le confirmamos que este es ahora su correo de contacto en el sistema del asilo.'
+            : 'Le confirmamos que quedó registrado(a) como familiar responsable en el sistema del asilo.';
+        return Correo::enviar($d['email'], $cambioCorreo ? 'Su correo de contacto fue actualizado' : 'Registro como familiar responsable',
+            "<p>Hola, {$e($d['nombre'])}:</p>
+             <p>{$intro}</p>
+             <table style=\"border-collapse:collapse;margin:8px 0\">
+               <tr><td style=\"padding:3px 12px 3px 0;color:#5d6d67\">Nombre</td><td><strong>{$e($d['nombre'])} {$e($d['apellido'])}</strong></td></tr>
+               <tr><td style=\"padding:3px 12px 3px 0;color:#5d6d67\">Parentesco</td><td>{$e($d['parentesco'])}</td></tr>
+               <tr><td style=\"padding:3px 12px 3px 0;color:#5d6d67\">Teléfono</td><td>{$e($d['telefono'])}</td></tr>
+             </table>
+             <p>A este correo le avisaremos cuando su familiar sea remitido a un especialista y cuando se programe o cambie una cita.</p>
+             <p>Si alguno de estos datos no es correcto, o usted no reconoce este registro, comuníquese con la administración del asilo.</p>");
+    }
+
+    public static function avisoCorreo(array $r): string {
+        return $r['estado'] === 'Enviado' ? ' Se envió un correo de confirmación al familiar.' : '';
     }
 
     /** El DPI se valida completo al registrarlo o cambiarlo; uno ya guardado que no se modifica se respeta */
